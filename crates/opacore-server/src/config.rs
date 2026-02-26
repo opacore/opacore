@@ -1,0 +1,35 @@
+use std::env;
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub server_port: u16,
+    pub sqlite_path: String,
+    pub bdk_wallets_dir: String,
+    pub session_secret: String,
+    pub esplora_url: String,
+    pub coingecko_api_url: String,
+    pub cors_origin: String,
+}
+
+impl Config {
+    pub fn from_env() -> Self {
+        Self {
+            server_port: env::var("SERVER_PORT")
+                .unwrap_or_else(|_| "4000".to_string())
+                .parse()
+                .expect("SERVER_PORT must be a valid port number"),
+            sqlite_path: env::var("SQLITE_PATH")
+                .unwrap_or_else(|_| "./data/opacore.db".to_string()),
+            bdk_wallets_dir: env::var("BDK_WALLETS_DIR")
+                .unwrap_or_else(|_| "./data/wallets".to_string()),
+            session_secret: env::var("SESSION_SECRET")
+                .unwrap_or_else(|_| "change-me-to-a-random-32-char-string".to_string()),
+            esplora_url: env::var("ESPLORA_URL")
+                .unwrap_or_else(|_| "https://blockstream.info/api".to_string()),
+            coingecko_api_url: env::var("COINGECKO_API_URL")
+                .unwrap_or_else(|_| "https://api.coingecko.com/api/v3".to_string()),
+            cors_origin: env::var("CORS_ORIGIN")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string()),
+        }
+    }
+}

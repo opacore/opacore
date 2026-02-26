@@ -1,0 +1,45 @@
+[package]
+name = "opacore-server"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+# Web framework
+axum = { version = "0.8", features = ["macros"] }
+axum-extra = { version = "0.10", features = ["cookie", "typed-header"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+tokio = { version = "1", features = ["full"] }
+
+# Database (pinned to 0.31 for BDK compatibility)
+rusqlite = { version = "0.31", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.24"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP client (price fetching)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Auth
+argon2 = "0.5"
+rand = "0.8"
+
+# Bitcoin / BDK
+bdk_wallet = { version = "2.3", features = ["rusqlite"] }
+bdk_esplora = { version = "0.22", features = ["async-https"] }
+esplora-client = { version = "0.12", features = ["async-https"] }
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+dotenvy = "0.15"
+csv = "1"
+base64 = "0.22"
+time = "0.3"
