@@ -32,6 +32,11 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Create index on (portfolio_id, type) — must run after type column exists
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_invoices_portfolio_type ON invoices(portfolio_id, type);",
+    )?;
+
     // Migration: add 'reusable' column to invoices
     let has_reusable: bool = conn
         .prepare("SELECT COUNT(*) FROM pragma_table_info('invoices') WHERE name='reusable'")?

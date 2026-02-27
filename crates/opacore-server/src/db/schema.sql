@@ -141,7 +141,6 @@ CREATE TABLE IF NOT EXISTS invoices (
     updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_invoices_portfolio_id ON invoices(portfolio_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_portfolio_type ON invoices(portfolio_id, type);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token);
 CREATE INDEX IF NOT EXISTS idx_invoices_btc_address ON invoices(btc_address);
