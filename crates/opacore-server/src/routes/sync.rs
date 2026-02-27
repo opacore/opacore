@@ -53,44 +53,65 @@ pub async fn sync_wallet(
     }
 
     // Get wallet details from app DB
-    let (descriptor, xpub, derivation_path, network_str, gap_limit_db): (
-        Option<String>, Option<String>, Option<String>, String, i64,
+    let (descriptor, xpub, derivation_path, address, network_str, wallet_type, gap_limit_db): (
+        Option<String>, Option<String>, Option<String>, Option<String>, String, String, i64,
     ) = conn.query_row(
-        "SELECT descriptor, xpub, derivation_path, network, gap_limit FROM wallets WHERE id = ?1",
+        "SELECT descriptor, xpub, derivation_path, address, network, wallet_type, gap_limit FROM wallets WHERE id = ?1",
         rusqlite::params![wallet_id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
-    )?;
-
-    // Build descriptors
-    let (external_desc, internal_desc) = wallet_svc::build_descriptors(
-        descriptor.as_deref(),
-        xpub.as_deref(),
-        derivation_path.as_deref(),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
     )?;
 
     let network = wallet_svc::parse_network(&network_str)?;
-    let gap_limit = body.gap_limit.unwrap_or(gap_limit_db as usize);
 
-    // Load or create BDK wallet
-    let (mut bdk_wallet, mut bdk_conn) = wallet_svc::load_or_create_bdk_wallet(
-        &state.config.bdk_wallets_dir,
-        &wallet_id,
-        &external_desc,
-        &internal_desc,
-        network,
-    )?;
+    // Use correct Esplora URL based on network
+    let esplora_url = match network {
+        bdk_wallet::bitcoin::Network::Testnet => {
+            state.config.esplora_url.replace("/api", "/testnet/api")
+        }
+        bdk_wallet::bitcoin::Network::Signet => {
+            state.config.esplora_url.replace("/api", "/signet/api")
+        }
+        _ => state.config.esplora_url.clone(),
+    };
 
-    // Run the full scan
-    let result = sync::full_scan(
-        &mut bdk_wallet,
-        &mut bdk_conn,
-        &state.config.esplora_url,
-        gap_limit,
-        &state.db,
-        &wallet_id,
-        &portfolio_id,
-    )
-    .await?;
+    // For single address wallets, use direct Esplora API (BDK doesn't support addr() descriptors)
+    let result = if wallet_type == "address" {
+        let addr = address.as_deref().ok_or_else(|| {
+            AppError::BadRequest("Address wallet missing address field".into())
+        })?;
+        sync::address_sync(&esplora_url, addr, &state.db, &wallet_id, &portfolio_id).await?
+    } else {
+        // Build descriptors for xpub/descriptor wallets
+        let (external_desc, internal_desc) = wallet_svc::build_descriptors(
+            descriptor.as_deref(),
+            xpub.as_deref(),
+            derivation_path.as_deref(),
+            address.as_deref(),
+        )?;
+
+        let gap_limit = body.gap_limit.unwrap_or(gap_limit_db as usize);
+
+        // Load or create BDK wallet
+        let (mut bdk_wallet, mut bdk_conn) = wallet_svc::load_or_create_bdk_wallet(
+            &state.config.bdk_wallets_dir,
+            &wallet_id,
+            &external_desc,
+            &internal_desc,
+            network,
+        )?;
+
+        // Run the full scan
+        sync::full_scan(
+            &mut bdk_wallet,
+            &mut bdk_conn,
+            &esplora_url,
+            gap_limit,
+            &state.db,
+            &wallet_id,
+            &portfolio_id,
+        )
+        .await?
+    };
 
     Ok(Json(SyncResponse {
         transactions_found: result.transactions_found,
@@ -118,18 +139,33 @@ pub async fn get_addresses(
         return Err(AppError::NotFound("Wallet not found".into()));
     }
 
-    let (descriptor, xpub, derivation_path, network_str, gap_limit): (
-        Option<String>, Option<String>, Option<String>, String, i64,
+    let (descriptor, xpub, derivation_path, address, network_str, wallet_type, gap_limit): (
+        Option<String>, Option<String>, Option<String>, Option<String>, String, String, i64,
     ) = conn.query_row(
-        "SELECT descriptor, xpub, derivation_path, network, gap_limit FROM wallets WHERE id = ?1",
+        "SELECT descriptor, xpub, derivation_path, address, network, wallet_type, gap_limit FROM wallets WHERE id = ?1",
         rusqlite::params![wallet_id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
     )?;
+
+    // For single address wallets, just return the address directly (no BDK)
+    if wallet_type == "address" {
+        let addresses = if let Some(addr) = address {
+            vec![wallet_svc::AddressInfo {
+                index: 0,
+                address: addr,
+                keychain: "external".to_string(),
+            }]
+        } else {
+            vec![]
+        };
+        return Ok(Json(AddressesResponse { addresses }));
+    }
 
     let (external_desc, internal_desc) = wallet_svc::build_descriptors(
         descriptor.as_deref(),
         xpub.as_deref(),
         derivation_path.as_deref(),
+        address.as_deref(),
     )?;
 
     let network = wallet_svc::parse_network(&network_str)?;
@@ -165,18 +201,42 @@ pub async fn get_utxos(
         return Err(AppError::NotFound("Wallet not found".into()));
     }
 
-    let (descriptor, xpub, derivation_path, network_str): (
-        Option<String>, Option<String>, Option<String>, String,
+    let (descriptor, xpub, derivation_path, address, network_str, wallet_type): (
+        Option<String>, Option<String>, Option<String>, Option<String>, String, String,
     ) = conn.query_row(
-        "SELECT descriptor, xpub, derivation_path, network FROM wallets WHERE id = ?1",
+        "SELECT descriptor, xpub, derivation_path, address, network, wallet_type FROM wallets WHERE id = ?1",
         rusqlite::params![wallet_id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
     )?;
+
+    // For single address wallets, fetch UTXOs from Esplora directly (no BDK)
+    if wallet_type == "address" {
+        let addr = address.as_deref().ok_or_else(|| {
+            AppError::BadRequest("Address wallet missing address field".into())
+        })?;
+
+        let network = wallet_svc::parse_network(&network_str)?;
+        let esplora_url = match network {
+            bdk_wallet::bitcoin::Network::Testnet => {
+                state.config.esplora_url.replace("/api", "/testnet/api")
+            }
+            bdk_wallet::bitcoin::Network::Signet => {
+                state.config.esplora_url.replace("/api", "/signet/api")
+            }
+            _ => state.config.esplora_url.clone(),
+        };
+
+        let utxos = sync::address_utxos(&esplora_url, addr).await?;
+        let total_sat: u64 = utxos.iter().map(|u| u.value_sat).sum();
+
+        return Ok(Json(UtxosResponse { utxos, total_sat }));
+    }
 
     let (external_desc, internal_desc) = wallet_svc::build_descriptors(
         descriptor.as_deref(),
         xpub.as_deref(),
         derivation_path.as_deref(),
+        address.as_deref(),
     )?;
 
     let network = wallet_svc::parse_network(&network_str)?;

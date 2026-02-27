@@ -143,13 +143,14 @@ export interface Transaction {
 }
 
 export const transactions = {
-  list: (params: { portfolioId: string; txType?: string; walletId?: string; limit?: number; offset?: number }) => {
+  list: async (params: { portfolioId: string; txType?: string; walletId?: string; limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();
     if (params.txType) qs.set('tx_type', params.txType);
     if (params.walletId) qs.set('wallet_id', params.walletId);
     if (params.limit) qs.set('limit', params.limit.toString());
     if (params.offset) qs.set('offset', params.offset.toString());
-    return request<Transaction[]>(`/portfolios/${params.portfolioId}/transactions?${qs}`);
+    const res = await request<{ data: Transaction[] }>(`/portfolios/${params.portfolioId}/transactions?${qs}`);
+    return res.data;
   },
 
   get: (portfolioId: string, txId: string) =>
@@ -230,9 +231,8 @@ export interface AddressInfo {
 export interface UtxoInfo {
   txid: string;
   vout: number;
-  amount_sat: number;
-  block_height: number | null;
-  is_spent: boolean;
+  value_sat: number;
+  keychain: string;
 }
 
 export interface SyncResult {

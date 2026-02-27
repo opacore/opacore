@@ -17,15 +17,17 @@ pub fn parse_network(network: &str) -> AppResult<Network> {
     }
 }
 
-/// Build a wpkh descriptor pair (external + internal) from an xpub.
+/// Build a wpkh descriptor pair (external + internal) from an xpub, descriptor, or single address.
 ///
 /// If the user provides a full descriptor string, it's returned as-is for external,
 /// and with /1/* for internal (change). If the user provides just an xpub with optional
-/// fingerprint and derivation path, we construct wpkh descriptors.
+/// fingerprint and derivation path, we construct wpkh descriptors. For single addresses,
+/// we wrap in an addr() descriptor.
 pub fn build_descriptors(
     descriptor: Option<&str>,
     xpub: Option<&str>,
     derivation_path: Option<&str>,
+    address: Option<&str>,
 ) -> AppResult<(String, String)> {
     if let Some(desc) = descriptor {
         let external = desc.to_string();
@@ -37,17 +39,22 @@ pub fn build_descriptors(
         return Ok((external, internal));
     }
 
-    let xpub = xpub.ok_or_else(|| {
-        AppError::BadRequest("Either descriptor or xpub must be provided".into())
-    })?;
+    if let Some(xpub) = xpub {
+        let deriv_path = derivation_path.unwrap_or("84'/0'/0'");
+        let fingerprint = "00000000";
 
-    let deriv_path = derivation_path.unwrap_or("84'/0'/0'");
-    let fingerprint = "00000000";
+        let external = format!("wpkh([{fingerprint}/{deriv_path}]{xpub}/0/*)");
+        let internal = format!("wpkh([{fingerprint}/{deriv_path}]{xpub}/1/*)");
 
-    let external = format!("wpkh([{fingerprint}/{deriv_path}]{xpub}/0/*)");
-    let internal = format!("wpkh([{fingerprint}/{deriv_path}]{xpub}/1/*)");
+        return Ok((external, internal));
+    }
 
-    Ok((external, internal))
+    if let Some(addr) = address {
+        let desc = format!("addr({addr})");
+        return Ok((desc.clone(), desc));
+    }
+
+    Err(AppError::BadRequest("Either descriptor, xpub, or address must be provided".into()))
 }
 
 /// Load or create a BDK wallet backed by a per-wallet SQLite file.

@@ -250,7 +250,7 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
                 <TableRow>
                   <TableHead>Outpoint</TableHead>
                   <TableHead>Amount (BTC)</TableHead>
-                  <TableHead>Block Height</TableHead>
+                  <TableHead>Keychain</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -260,10 +260,10 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
                       {utxo.txid.substring(0, 16)}...:{utxo.vout}
                     </TableCell>
                     <TableCell className="font-mono">
-                      {(utxo.amount_sat / 1e8).toFixed(8)}
+                      {(utxo.value_sat / 1e8).toFixed(8)}
                     </TableCell>
-                    <TableCell className="font-mono text-muted-foreground">
-                      {utxo.block_height ?? 'Unconfirmed'}
+                    <TableCell className="text-muted-foreground">
+                      {utxo.keychain}
                     </TableCell>
                   </TableRow>
                 ))}

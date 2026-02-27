@@ -32,20 +32,29 @@ export default function ImportWalletPage() {
     mutationFn: async () => {
       if (!firstPortfolioId) throw new Error('No portfolio found. Create a portfolio first.');
 
+      // Auto-detect: if user selected xpub but pasted a Bitcoin address, switch to address type
+      let walletType = form.walletType;
+      const val = form.value.trim();
+      if (walletType === 'xpub' && (val.startsWith('1') || val.startsWith('3') || val.startsWith('bc1') || val.startsWith('tb1'))) {
+        if (!val.startsWith('xpub') && !val.startsWith('ypub') && !val.startsWith('zpub') && !val.startsWith('tpub')) {
+          walletType = 'address';
+        }
+      }
+
       const data: Parameters<typeof walletApi.create>[0] = {
         portfolio_id: firstPortfolioId,
         label: form.label,
-        wallet_type: form.walletType,
+        wallet_type: walletType,
         network: form.network,
         gap_limit: parseInt(form.gapLimit, 10) || 20,
       };
 
-      if (form.walletType === 'xpub') {
-        data.xpub = form.value;
-      } else if (form.walletType === 'descriptor') {
-        data.descriptor = form.value;
-      } else if (form.walletType === 'address') {
-        data.address = form.value;
+      if (walletType === 'xpub') {
+        data.xpub = val;
+      } else if (walletType === 'descriptor') {
+        data.descriptor = val;
+      } else if (walletType === 'address') {
+        data.address = val;
       }
 
       const wallet = await walletApi.create(data);
