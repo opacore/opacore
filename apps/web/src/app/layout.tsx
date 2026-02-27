@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Complete operating system for Bitcoiners',
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/logo.jpg', type: 'image/jpeg' },
     ],
   },
 };
