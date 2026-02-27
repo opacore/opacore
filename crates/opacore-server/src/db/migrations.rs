@@ -19,5 +19,31 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Migration: add 'type' column to invoices (invoice vs payment_link)
+    let has_invoice_type: bool = conn
+        .prepare("SELECT COUNT(*) FROM pragma_table_info('invoices') WHERE name='type'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_invoice_type {
+        conn.execute_batch(
+            "ALTER TABLE invoices ADD COLUMN type TEXT NOT NULL DEFAULT 'invoice';",
+        )?;
+    }
+
+    // Migration: add 'reusable' column to invoices
+    let has_reusable: bool = conn
+        .prepare("SELECT COUNT(*) FROM pragma_table_info('invoices') WHERE name='reusable'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_reusable {
+        conn.execute_batch(
+            "ALTER TABLE invoices ADD COLUMN reusable INTEGER NOT NULL DEFAULT 0;",
+        )?;
+    }
+
     Ok(())
 }

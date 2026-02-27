@@ -23,7 +23,7 @@ const statusVariant = (status: string) => {
   }
 };
 
-export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -58,11 +58,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     },
   });
 
-  const deleteInvoice = useMutation({
+  const deleteItem = useMutation({
     mutationFn: () => invoiceApi.delete(portfolioId!, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      router.push('/invoices');
+      router.push('/payments');
     },
   });
 
@@ -82,7 +82,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   if (isLoading || !portfolioList) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-muted-foreground">Loading invoice...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -90,17 +90,18 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   if (!invoice) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-muted-foreground">Invoice not found</p>
+        <p className="text-muted-foreground">Not found</p>
       </div>
     );
   }
 
+  const isPaymentLink = invoice.type === 'payment_link';
   const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/pay/${invoice.share_token}`;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/invoices">
+        <Link href="/payments">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -108,13 +109,20 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight font-mono">
-              {invoice.invoice_number}
+              {isPaymentLink ? (invoice.description || 'Payment Link') : invoice.invoice_number}
             </h1>
             <Badge variant={statusVariant(invoice.status) as 'default'} className="text-sm">
               {invoice.status}
             </Badge>
+            {isPaymentLink && invoice.reusable && (
+              <Badge variant="outline" className="text-sm">Reusable</Badge>
+            )}
           </div>
-          <p className="text-muted-foreground">{invoice.customer_name}</p>
+          {isPaymentLink ? (
+            <p className="text-muted-foreground">Payment Link</p>
+          ) : (
+            <p className="text-muted-foreground">{invoice.customer_name}</p>
+          )}
         </div>
       </div>
 
@@ -125,13 +133,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <CardTitle className="text-sm font-medium">Amount</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
-              {(invoice.amount_sat / 1e8).toFixed(8)} BTC
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {invoice.amount_sat.toLocaleString()} sats
-            </p>
-            {invoice.amount_fiat != null && (
+            {invoice.amount_sat === 0 ? (
+              <div className="text-2xl font-bold text-muted-foreground">Open Amount</div>
+            ) : (
+              <>
+                <div className="text-3xl font-bold">
+                  {(invoice.amount_sat / 1e8).toFixed(8)} BTC
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {invoice.amount_sat.toLocaleString()} sats
+                </p>
+              </>
+            )}
+            {invoice.amount_fiat != null && invoice.amount_fiat > 0 && (
               <p className="text-sm text-muted-foreground mt-1">
                 ${invoice.amount_fiat.toLocaleString(undefined, { minimumFractionDigits: 2 })} {invoice.fiat_currency.toUpperCase()}
                 {invoice.btc_price_at_creation && (
@@ -151,7 +165,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <span className="text-muted-foreground">Created</span>
               <span>{new Date(invoice.created_at).toLocaleDateString()}</span>
             </div>
-            {invoice.due_at && (
+            {!isPaymentLink && invoice.due_at && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Due</span>
                 <span>{new Date(invoice.due_at).toLocaleDateString()}</span>
@@ -174,6 +188,21 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
       </div>
+
+      {/* Customer info (invoices only) */}
+      {!isPaymentLink && invoice.customer_name && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Customer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm">{invoice.customer_name}</div>
+            {invoice.customer_email && (
+              <div className="text-sm text-muted-foreground">{invoice.customer_email}</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* BTC Address */}
       <Card>
@@ -217,6 +246,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 {(invoice.paid_amount_sat / 1e8).toFixed(8)} BTC
               </div>
             )}
+            {isPaymentLink && invoice.reusable && (
+              <p className="text-xs text-muted-foreground mt-2">
+                This is a reusable payment link — it continues to accept payments.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -240,13 +274,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Send this link to your customer. They can view the invoice and pay via QR code.
+            {isPaymentLink
+              ? 'Share this link to receive Bitcoin payments.'
+              : 'Send this link to your customer. They can view the invoice and pay via QR code.'}
           </p>
         </CardContent>
       </Card>
 
       {/* Description */}
-      {invoice.description && (
+      {invoice.description && !isPaymentLink && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Description</CardTitle>
@@ -265,7 +301,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             disabled={updateInvoice.isPending}
           >
             <Send className="h-4 w-4 mr-2" />
-            Mark as Sent
+            {isPaymentLink ? 'Activate' : 'Mark as Sent'}
           </Button>
         )}
         {(invoice.status === 'sent' || invoice.status === 'draft') && (
@@ -291,11 +327,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <Button
           variant="destructive"
           onClick={() => {
-            if (confirm('Are you sure you want to delete this invoice?')) {
-              deleteInvoice.mutate();
+            const msg = isPaymentLink ? 'Delete this payment link?' : 'Delete this invoice?';
+            if (confirm(msg)) {
+              deleteItem.mutate();
             }
           }}
-          disabled={deleteInvoice.isPending}
+          disabled={deleteItem.isPending}
         >
           <Trash2 className="h-4 w-4 mr-2" />
           Delete

@@ -333,8 +333,10 @@ export const tax = {
 export interface Invoice {
   id: string;
   portfolio_id: string;
-  invoice_number: string;
-  customer_name: string;
+  type: string;
+  reusable: boolean;
+  invoice_number: string | null;
+  customer_name: string | null;
   customer_email: string | null;
   description: string | null;
   amount_sat: number;
@@ -356,8 +358,10 @@ export interface Invoice {
 }
 
 export interface PublicInvoice {
-  invoice_number: string;
-  customer_name: string;
+  type: string;
+  reusable: boolean;
+  invoice_number: string | null;
+  customer_name: string | null;
   description: string | null;
   amount_sat: number;
   amount_fiat: number | null;
@@ -371,9 +375,10 @@ export interface PublicInvoice {
 }
 
 export const invoices = {
-  list: (portfolioId: string, status?: string) => {
+  list: (portfolioId: string, params?: { status?: string; type?: string }) => {
     const qs = new URLSearchParams();
-    if (status) qs.set('status', status);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.type) qs.set('type', params.type);
     return request<Invoice[]>(`/portfolios/${portfolioId}/invoices?${qs}`);
   },
 
@@ -382,11 +387,13 @@ export const invoices = {
 
   create: (data: {
     portfolio_id: string;
-    invoice_number: string;
-    customer_name: string;
+    type?: string;
+    reusable?: boolean;
+    invoice_number?: string;
+    customer_name?: string;
     customer_email?: string;
     description?: string;
-    amount_sat: number;
+    amount_sat?: number;
     amount_fiat?: number;
     fiat_currency?: string;
     btc_price_at_creation?: number;

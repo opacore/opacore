@@ -34,6 +34,7 @@ pub async fn check_invoice_payment(
     invoice_id: &str,
     btc_address: &str,
     amount_sat: i64,
+    reusable: bool,
 ) -> AppResult<bool> {
     let http = reqwest::Client::builder()
         .user_agent("opacore/0.1")
@@ -67,14 +68,26 @@ pub async fn check_invoice_payment(
             .map(|v| v.value)
             .sum();
 
-        if received >= amount_sat as u64 {
-            // Payment found — update invoice
+        // For open-ended payment links (amount_sat = 0), any received amount qualifies
+        let threshold = if amount_sat == 0 { 1 } else { amount_sat as u64 };
+
+        if received >= threshold {
             let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
             let conn = pool.get()?;
-            conn.execute(
-                "UPDATE invoices SET status = 'paid', paid_at = ?1, paid_txid = ?2, paid_amount_sat = ?3, updated_at = ?4 WHERE id = ?5 AND status != 'paid'",
-                rusqlite::params![now, tx.txid, received as i64, now, invoice_id],
-            )?;
+
+            if reusable {
+                // Reusable payment links: record payment but keep status as 'sent'
+                conn.execute(
+                    "UPDATE invoices SET paid_at = ?1, paid_txid = ?2, paid_amount_sat = ?3, updated_at = ?4 WHERE id = ?5",
+                    rusqlite::params![now, tx.txid, received as i64, now, invoice_id],
+                )?;
+            } else {
+                // One-time: mark as paid
+                conn.execute(
+                    "UPDATE invoices SET status = 'paid', paid_at = ?1, paid_txid = ?2, paid_amount_sat = ?3, updated_at = ?4 WHERE id = ?5 AND status != 'paid'",
+                    rusqlite::params![now, tx.txid, received as i64, now, invoice_id],
+                )?;
+            }
 
             tracing::info!("Invoice {invoice_id} paid via txid {} ({} sats)", tx.txid, received);
             return Ok(true);
@@ -94,7 +107,7 @@ pub async fn run_invoice_checker(pool: DbPool, esplora_url: String) {
         let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
 
         // Get pending invoices (status = 'sent', not expired)
-        let invoices_to_check: Vec<(String, String, i64)> = {
+        let invoices_to_check: Vec<(String, String, i64, bool)> = {
             let conn = match pool.get() {
                 Ok(c) => c,
                 Err(e) => {
@@ -103,9 +116,9 @@ pub async fn run_invoice_checker(pool: DbPool, esplora_url: String) {
                 }
             };
 
-            // Expire overdue invoices first
+            // Expire overdue invoices first (skip reusable — they never auto-expire)
             if let Err(e) = conn.execute(
-                "UPDATE invoices SET status = 'expired', updated_at = ?1 WHERE status = 'sent' AND expires_at IS NOT NULL AND expires_at < ?2",
+                "UPDATE invoices SET status = 'expired', updated_at = ?1 WHERE status = 'sent' AND reusable = 0 AND expires_at IS NOT NULL AND expires_at < ?2",
                 rusqlite::params![now, now],
             ) {
                 tracing::error!("Invoice checker: failed to expire invoices: {e}");
@@ -113,7 +126,7 @@ pub async fn run_invoice_checker(pool: DbPool, esplora_url: String) {
 
             // Fetch sent invoices to check for payment
             let mut stmt = match conn.prepare(
-                "SELECT id, btc_address, amount_sat FROM invoices WHERE status = 'sent' LIMIT 10"
+                "SELECT id, btc_address, amount_sat, reusable FROM invoices WHERE status = 'sent' LIMIT 10"
             ) {
                 Ok(s) => s,
                 Err(e) => {
@@ -127,6 +140,7 @@ pub async fn run_invoice_checker(pool: DbPool, esplora_url: String) {
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, i64>(2)?,
+                    row.get::<_, i32>(3).map(|v| v != 0)?,
                 ))
             });
 
@@ -145,8 +159,8 @@ pub async fn run_invoice_checker(pool: DbPool, esplora_url: String) {
 
         tracing::debug!("Checking {} pending invoices for payment", invoices_to_check.len());
 
-        for (invoice_id, btc_address, amount_sat) in &invoices_to_check {
-            match check_invoice_payment(&esplora_url, &pool, invoice_id, btc_address, *amount_sat).await {
+        for (invoice_id, btc_address, amount_sat, reusable) in &invoices_to_check {
+            match check_invoice_payment(&esplora_url, &pool, invoice_id, btc_address, *amount_sat, *reusable).await {
                 Ok(true) => tracing::info!("Invoice {invoice_id} payment detected"),
                 Ok(false) => {}
                 Err(e) => tracing::warn!("Invoice {invoice_id} check failed: {e}"),

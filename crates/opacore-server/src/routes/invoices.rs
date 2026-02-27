@@ -15,8 +15,11 @@ use crate::services::invoice_checker;
 pub struct Invoice {
     pub id: String,
     pub portfolio_id: String,
-    pub invoice_number: String,
-    pub customer_name: String,
+    #[serde(rename = "type")]
+    pub record_type: String,
+    pub reusable: bool,
+    pub invoice_number: Option<String>,
+    pub customer_name: Option<String>,
     pub customer_email: Option<String>,
     pub description: Option<String>,
     pub amount_sat: i64,
@@ -40,11 +43,14 @@ pub struct Invoice {
 #[derive(Debug, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub portfolio_id: String,
-    pub invoice_number: String,
-    pub customer_name: String,
+    #[serde(rename = "type")]
+    pub record_type: Option<String>,
+    pub reusable: Option<bool>,
+    pub invoice_number: Option<String>,
+    pub customer_name: Option<String>,
     pub customer_email: Option<String>,
     pub description: Option<String>,
-    pub amount_sat: i64,
+    pub amount_sat: Option<i64>,
     pub amount_fiat: Option<f64>,
     pub fiat_currency: Option<String>,
     pub btc_price_at_creation: Option<f64>,
@@ -66,6 +72,8 @@ pub struct UpdateInvoiceRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct ListInvoicesQuery {
+    #[serde(rename = "type")]
+    pub record_type: Option<String>,
     pub status: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -74,8 +82,11 @@ pub struct ListInvoicesQuery {
 /// Public-facing invoice data (no sensitive fields)
 #[derive(Debug, Serialize)]
 pub struct PublicInvoice {
-    pub invoice_number: String,
-    pub customer_name: String,
+    #[serde(rename = "type")]
+    pub record_type: String,
+    pub reusable: bool,
+    pub invoice_number: Option<String>,
+    pub customer_name: Option<String>,
     pub description: Option<String>,
     pub amount_sat: i64,
     pub amount_fiat: Option<f64>,
@@ -88,33 +99,54 @@ pub struct PublicInvoice {
     pub paid_amount_sat: Option<i64>,
 }
 
-const INVOICE_COLS: &str = "id, portfolio_id, invoice_number, customer_name, customer_email, description, amount_sat, amount_fiat, fiat_currency, btc_price_at_creation, btc_address, wallet_id, status, share_token, issued_at, due_at, expires_at, paid_at, paid_txid, paid_amount_sat, created_at, updated_at";
+const INVOICE_COLS: &str = "id, portfolio_id, type, reusable, invoice_number, customer_name, customer_email, description, amount_sat, amount_fiat, fiat_currency, btc_price_at_creation, btc_address, wallet_id, status, share_token, issued_at, due_at, expires_at, paid_at, paid_txid, paid_amount_sat, created_at, updated_at";
 
 fn row_to_invoice(row: &rusqlite::Row) -> rusqlite::Result<Invoice> {
     Ok(Invoice {
         id: row.get(0)?,
         portfolio_id: row.get(1)?,
-        invoice_number: row.get(2)?,
-        customer_name: row.get(3)?,
-        customer_email: row.get(4)?,
-        description: row.get(5)?,
-        amount_sat: row.get(6)?,
-        amount_fiat: row.get(7)?,
-        fiat_currency: row.get(8)?,
-        btc_price_at_creation: row.get(9)?,
-        btc_address: row.get(10)?,
-        wallet_id: row.get(11)?,
-        status: row.get(12)?,
-        share_token: row.get(13)?,
-        issued_at: row.get(14)?,
-        due_at: row.get(15)?,
-        expires_at: row.get(16)?,
-        paid_at: row.get(17)?,
-        paid_txid: row.get(18)?,
-        paid_amount_sat: row.get(19)?,
-        created_at: row.get(20)?,
-        updated_at: row.get(21)?,
+        record_type: row.get(2)?,
+        reusable: row.get::<_, i32>(3).map(|v| v != 0)?,
+        invoice_number: row.get(4)?,
+        customer_name: row.get(5)?,
+        customer_email: row.get(6)?,
+        description: row.get(7)?,
+        amount_sat: row.get(8)?,
+        amount_fiat: row.get(9)?,
+        fiat_currency: row.get(10)?,
+        btc_price_at_creation: row.get(11)?,
+        btc_address: row.get(12)?,
+        wallet_id: row.get(13)?,
+        status: row.get(14)?,
+        share_token: row.get(15)?,
+        issued_at: row.get(16)?,
+        due_at: row.get(17)?,
+        expires_at: row.get(18)?,
+        paid_at: row.get(19)?,
+        paid_txid: row.get(20)?,
+        paid_amount_sat: row.get(21)?,
+        created_at: row.get(22)?,
+        updated_at: row.get(23)?,
     })
+}
+
+fn invoice_to_public(invoice: &Invoice) -> PublicInvoice {
+    PublicInvoice {
+        record_type: invoice.record_type.clone(),
+        reusable: invoice.reusable,
+        invoice_number: invoice.invoice_number.clone(),
+        customer_name: invoice.customer_name.clone(),
+        description: invoice.description.clone(),
+        amount_sat: invoice.amount_sat,
+        amount_fiat: invoice.amount_fiat,
+        fiat_currency: invoice.fiat_currency.clone(),
+        btc_address: invoice.btc_address.clone(),
+        status: invoice.status.clone(),
+        expires_at: invoice.expires_at.clone(),
+        paid_at: invoice.paid_at.clone(),
+        paid_txid: invoice.paid_txid.clone(),
+        paid_amount_sat: invoice.paid_amount_sat,
+    }
 }
 
 fn verify_portfolio_ownership(
@@ -149,6 +181,11 @@ pub async fn list(
     let mut where_clause = "WHERE portfolio_id = ?1".to_string();
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(portfolio_id)];
 
+    if let Some(ref record_type) = query.record_type {
+        params.push(Box::new(record_type.clone()));
+        where_clause.push_str(&format!(" AND type = ?{}", params.len()));
+    }
+
     if let Some(ref status) = query.status {
         params.push(Box::new(status.clone()));
         where_clause.push_str(&format!(" AND status = ?{}", params.len()));
@@ -182,30 +219,52 @@ pub async fn create(
     let conn = state.db.get()?;
     verify_portfolio_ownership(&conn, &body.portfolio_id, &user.id)?;
 
-    if body.invoice_number.is_empty() {
-        return Err(AppError::BadRequest("Invoice number is required".into()));
+    let record_type = body.record_type.as_deref().unwrap_or("invoice");
+    let reusable = body.reusable.unwrap_or(false);
+
+    // Type-specific validation
+    match record_type {
+        "invoice" => {
+            let inv_num = body.invoice_number.as_deref().unwrap_or("");
+            if inv_num.is_empty() {
+                return Err(AppError::BadRequest("Invoice number is required".into()));
+            }
+            let cust_name = body.customer_name.as_deref().unwrap_or("");
+            if cust_name.is_empty() {
+                return Err(AppError::BadRequest("Customer name is required".into()));
+            }
+            if body.amount_sat.unwrap_or(0) <= 0 {
+                return Err(AppError::BadRequest("Amount must be positive".into()));
+            }
+        }
+        "payment_link" => {
+            // Payment links only require btc_address (already required by struct)
+        }
+        _ => {
+            return Err(AppError::BadRequest(
+                "type must be 'invoice' or 'payment_link'".into(),
+            ));
+        }
     }
-    if body.customer_name.is_empty() {
-        return Err(AppError::BadRequest("Customer name is required".into()));
-    }
+
     if body.btc_address.is_empty() {
         return Err(AppError::BadRequest("BTC address is required".into()));
-    }
-    if body.amount_sat <= 0 {
-        return Err(AppError::BadRequest("Amount must be positive".into()));
     }
 
     let id = Uuid::new_v4().to_string();
     let share_token = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
     let fiat_currency = body.fiat_currency.as_deref().unwrap_or("usd");
+    let amount_sat = body.amount_sat.unwrap_or(0);
+    let reusable_int: i32 = if reusable { 1 } else { 0 };
 
     conn.execute(
-        "INSERT INTO invoices (id, portfolio_id, invoice_number, customer_name, customer_email, description, amount_sat, amount_fiat, fiat_currency, btc_price_at_creation, btc_address, wallet_id, status, share_token, issued_at, due_at, expires_at, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'draft', ?13, ?14, ?15, ?16, ?17, ?18)",
+        "INSERT INTO invoices (id, portfolio_id, type, reusable, invoice_number, customer_name, customer_email, description, amount_sat, amount_fiat, fiat_currency, btc_price_at_creation, btc_address, wallet_id, status, share_token, issued_at, due_at, expires_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 'draft', ?15, ?16, ?17, ?18, ?19, ?20)",
         rusqlite::params![
-            id, body.portfolio_id, body.invoice_number, body.customer_name,
-            body.customer_email, body.description, body.amount_sat,
+            id, body.portfolio_id, record_type, reusable_int,
+            body.invoice_number, body.customer_name,
+            body.customer_email, body.description, amount_sat,
             body.amount_fiat, fiat_currency, body.btc_price_at_creation,
             body.btc_address, body.wallet_id, share_token,
             now, body.due_at, body.expires_at, now, now
@@ -215,11 +274,13 @@ pub async fn create(
     let invoice = Invoice {
         id,
         portfolio_id: body.portfolio_id,
+        record_type: record_type.to_string(),
+        reusable,
         invoice_number: body.invoice_number,
         customer_name: body.customer_name,
         customer_email: body.customer_email,
         description: body.description,
-        amount_sat: body.amount_sat,
+        amount_sat,
         amount_fiat: body.amount_fiat,
         fiat_currency: fiat_currency.to_string(),
         btc_price_at_creation: body.btc_price_at_creation,
@@ -301,7 +362,7 @@ pub async fn update(
 
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
     let status = body.status.unwrap_or(existing.status);
-    let customer_name = body.customer_name.unwrap_or(existing.customer_name);
+    let customer_name = body.customer_name.or(existing.customer_name);
     let customer_email = body.customer_email.or(existing.customer_email);
     let description = body.description.or(existing.description);
     let due_at = body.due_at.or(existing.due_at);
@@ -369,7 +430,7 @@ pub async fn check_payment(
             e => AppError::Database(e),
         })?;
 
-    if invoice.status == "paid" {
+    if invoice.status == "paid" && !invoice.reusable {
         return Ok(Json(invoice));
     }
 
@@ -380,6 +441,7 @@ pub async fn check_payment(
         &invoice.id,
         &invoice.btc_address,
         invoice.amount_sat,
+        invoice.reusable,
     )
     .await?;
 
@@ -425,6 +487,7 @@ pub async fn public_get(
             &invoice.id,
             &invoice.btc_address,
             invoice.amount_sat,
+            invoice.reusable,
         )
         .await;
 
@@ -442,34 +505,8 @@ pub async fn public_get(
                 e => AppError::Database(e),
             })?;
 
-        return Ok(Json(PublicInvoice {
-            invoice_number: invoice.invoice_number,
-            customer_name: invoice.customer_name,
-            description: invoice.description,
-            amount_sat: invoice.amount_sat,
-            amount_fiat: invoice.amount_fiat,
-            fiat_currency: invoice.fiat_currency,
-            btc_address: invoice.btc_address,
-            status: invoice.status,
-            expires_at: invoice.expires_at,
-            paid_at: invoice.paid_at,
-            paid_txid: invoice.paid_txid,
-            paid_amount_sat: invoice.paid_amount_sat,
-        }));
+        return Ok(Json(invoice_to_public(&invoice)));
     }
 
-    Ok(Json(PublicInvoice {
-        invoice_number: invoice.invoice_number,
-        customer_name: invoice.customer_name,
-        description: invoice.description,
-        amount_sat: invoice.amount_sat,
-        amount_fiat: invoice.amount_fiat,
-        fiat_currency: invoice.fiat_currency,
-        btc_address: invoice.btc_address,
-        status: invoice.status,
-        expires_at: invoice.expires_at,
-        paid_at: invoice.paid_at,
-        paid_txid: invoice.paid_txid,
-        paid_amount_sat: invoice.paid_amount_sat,
-    }))
+    Ok(Json(invoice_to_public(&invoice)))
 }

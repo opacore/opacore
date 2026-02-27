@@ -79,6 +79,7 @@ export default function NewInvoicePage() {
     mutationFn: () =>
       invoiceApi.create({
         portfolio_id: portfolioId!,
+        type: 'invoice',
         invoice_number: form.invoiceNumber,
         customer_name: form.customerName,
         customer_email: form.customerEmail || undefined,
@@ -94,7 +95,7 @@ export default function NewInvoicePage() {
       }),
     onSuccess: async (invoice) => {
       await queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      router.push(`/invoices/${invoice.id}`);
+      router.push(`/payments/${invoice.id}`);
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Failed to create invoice');
@@ -128,7 +129,7 @@ export default function NewInvoicePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/invoices">
+        <Link href="/payments">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -242,7 +243,7 @@ export default function NewInvoicePage() {
               ) : (
                 <div className="space-y-2">
                   <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     value={selectedWalletId}
                     onChange={(e) => handleWalletChange(e.target.value)}
                   >

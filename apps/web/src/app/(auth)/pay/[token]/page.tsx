@@ -27,7 +27,7 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading invoice...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -38,9 +38,9 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
         <Card className="max-w-md w-full mx-4">
           <CardContent className="pt-6 text-center">
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">Invoice Not Found</h2>
+            <h2 className="text-lg font-semibold mb-2">Not Found</h2>
             <p className="text-sm text-muted-foreground">
-              This invoice link may be invalid or has been removed.
+              This payment link may be invalid or has been removed.
             </p>
           </CardContent>
         </Card>
@@ -48,8 +48,12 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
     );
   }
 
+  const isPaymentLink = invoice.type === 'payment_link';
+  const isOpenAmount = invoice.amount_sat === 0;
   const btcAmount = (invoice.amount_sat / 1e8).toFixed(8);
-  const bitcoinUri = `bitcoin:${invoice.btc_address}?amount=${btcAmount}`;
+  const bitcoinUri = isOpenAmount
+    ? `bitcoin:${invoice.btc_address}`
+    : `bitcoin:${invoice.btc_address}?amount=${btcAmount}`;
 
   // Expiry countdown
   let expiryText = '';
@@ -64,13 +68,18 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
     }
   }
 
+  const showQr = invoice.status !== 'expired' && invoice.status !== 'cancelled'
+    && (invoice.status !== 'paid' || invoice.reusable);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full space-y-6">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-2xl font-bold">opacore</h1>
-          <p className="text-sm text-muted-foreground">Bitcoin Invoice</p>
+          <p className="text-sm text-muted-foreground">
+            {isPaymentLink ? 'Bitcoin Payment' : 'Bitcoin Invoice'}
+          </p>
         </div>
 
         {/* Status Banner */}
@@ -89,6 +98,11 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
                   View transaction <ExternalLink className="h-3 w-3" />
                 </a>
               )}
+              {invoice.reusable && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  This link continues to accept payments.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -97,9 +111,11 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
           <Card className="border-destructive/50 bg-destructive/5">
             <CardContent className="pt-6 text-center">
               <XCircle className="h-12 w-12 text-destructive mx-auto mb-2" />
-              <h2 className="text-lg font-semibold text-destructive">Invoice Expired</h2>
+              <h2 className="text-lg font-semibold text-destructive">
+                {isPaymentLink ? 'Payment Link Expired' : 'Invoice Expired'}
+              </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                This invoice is no longer accepting payments.
+                This {isPaymentLink ? 'payment link' : 'invoice'} is no longer accepting payments.
               </p>
             </CardContent>
           </Card>
@@ -109,18 +125,22 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
           <Card className="border-muted">
             <CardContent className="pt-6 text-center">
               <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-              <h2 className="text-lg font-semibold">Invoice Cancelled</h2>
+              <h2 className="text-lg font-semibold">
+                {isPaymentLink ? 'Payment Link Cancelled' : 'Invoice Cancelled'}
+              </h2>
             </CardContent>
           </Card>
         )}
 
-        {/* Invoice Details */}
+        {/* Details */}
         <Card>
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Invoice #{invoice.invoice_number}
-            </CardTitle>
-            {invoice.customer_name && (
+            {!isPaymentLink && invoice.invoice_number && (
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Invoice #{invoice.invoice_number}
+              </CardTitle>
+            )}
+            {!isPaymentLink && invoice.customer_name && (
               <p className="text-sm">For: {invoice.customer_name}</p>
             )}
             {invoice.description && (
@@ -129,20 +149,29 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Amount */}
-            <div className="text-center">
-              <div className="text-3xl font-bold">{btcAmount} BTC</div>
-              <p className="text-sm text-muted-foreground">
-                {invoice.amount_sat.toLocaleString()} sats
-              </p>
-              {invoice.amount_fiat != null && (
-                <p className="text-sm text-muted-foreground">
-                  ${invoice.amount_fiat.toLocaleString(undefined, { minimumFractionDigits: 2 })} {invoice.fiat_currency.toUpperCase()}
+            {isOpenAmount ? (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-muted-foreground">Pay Any Amount</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Send any amount to the address below
                 </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-3xl font-bold">{btcAmount} BTC</div>
+                <p className="text-sm text-muted-foreground">
+                  {invoice.amount_sat.toLocaleString()} sats
+                </p>
+                {invoice.amount_fiat != null && (
+                  <p className="text-sm text-muted-foreground">
+                    ${invoice.amount_fiat.toLocaleString(undefined, { minimumFractionDigits: 2 })} {invoice.fiat_currency.toUpperCase()}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* QR Code */}
-            {invoice.status !== 'paid' && invoice.status !== 'expired' && invoice.status !== 'cancelled' && (
+            {showQr && (
               <div className="flex justify-center py-4">
                 <div className="rounded-lg border p-4 bg-white">
                   <QRCodeSVG
@@ -184,7 +213,7 @@ export default function PublicPayPage({ params }: { params: Promise<{ token: str
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground">
-          Powered by opacore &mdash; Non-custodial Bitcoin invoicing
+          Powered by opacore &mdash; Non-custodial Bitcoin payments
         </p>
       </div>
     </div>
