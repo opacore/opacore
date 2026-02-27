@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   Wallet,
+  HardDrive,
   Settings,
   LogOut,
   FileText,
@@ -32,6 +33,7 @@ import { cn } from '@opacore/ui';
 const activeTools = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { href: '/wallets', label: 'Wallets', icon: HardDrive },
   { href: '/portfolios', label: 'Portfolios', icon: Wallet },
 ];
 

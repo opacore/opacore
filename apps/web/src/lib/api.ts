@@ -221,9 +221,33 @@ export interface Wallet {
   updated_at: string;
 }
 
+export interface AddressInfo {
+  index: number;
+  address: string;
+  keychain: string;
+}
+
+export interface UtxoInfo {
+  txid: string;
+  vout: number;
+  amount_sat: number;
+  block_height: number | null;
+  is_spent: boolean;
+}
+
+export interface SyncResult {
+  transactions_found: number;
+  new_transactions: number;
+  balance_sat: number;
+  last_sync_height: number | null;
+}
+
 export const wallets = {
   list: (portfolioId: string) =>
     request<Wallet[]>(`/portfolios/${portfolioId}/wallets`),
+
+  get: (portfolioId: string, walletId: string) =>
+    request<Wallet>(`/portfolios/${portfolioId}/wallets/${walletId}`),
 
   create: (data: {
     portfolio_id: string;
@@ -237,11 +261,26 @@ export const wallets = {
     gap_limit?: number;
   }) => request<Wallet>('/wallets', { method: 'POST', body: JSON.stringify(data) }),
 
+  update: (portfolioId: string, walletId: string, data: { label?: string; gap_limit?: number }) =>
+    request<Wallet>(`/portfolios/${portfolioId}/wallets/${walletId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (portfolioId: string, walletId: string) =>
+    request<void>(`/portfolios/${portfolioId}/wallets/${walletId}`, { method: 'DELETE' }),
+
   sync: (portfolioId: string, walletId: string, gapLimit?: number) =>
-    request<{ transactions_found: number; new_transactions: number; balance_sat: number; last_sync_height: number | null }>(
+    request<SyncResult>(
       `/portfolios/${portfolioId}/wallets/${walletId}/sync`,
       { method: 'POST', body: JSON.stringify({ gap_limit: gapLimit }) },
     ),
+
+  addresses: (portfolioId: string, walletId: string) =>
+    request<{ addresses: AddressInfo[] }>(`/portfolios/${portfolioId}/wallets/${walletId}/addresses`),
+
+  utxos: (portfolioId: string, walletId: string) =>
+    request<{ utxos: UtxoInfo[]; total_sat: number }>(`/portfolios/${portfolioId}/wallets/${walletId}/utxos`),
 };
 
 // ── Tax ──
