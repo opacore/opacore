@@ -9,14 +9,11 @@ mod tax;
 mod transactions;
 mod wallets;
 
-use std::sync::Arc;
-
 use axum::{
     middleware,
     routing::{get, post, put},
     Router,
 };
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
 use crate::auth::middleware::require_auth;
 use crate::config::Config;
@@ -33,43 +30,20 @@ async fn health() -> &'static str {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    // Rate limit: auth routes — 10 requests per 60 seconds per IP
-    let auth_governor = GovernorConfigBuilder::default()
-        .per_second(6)
-        .burst_size(10)
-        .finish()
-        .unwrap();
-
-    // Rate limit: public routes — 30 requests per 60 seconds per IP
-    let public_governor = GovernorConfigBuilder::default()
-        .per_second(2)
-        .burst_size(30)
-        .finish()
-        .unwrap();
-
-    // Rate limit: protected API — 120 requests per 60 seconds per IP
-    let api_governor = GovernorConfigBuilder::default()
-        .per_second(2)
-        .burst_size(120)
-        .finish()
-        .unwrap();
-
-    // Health checks — no rate limit
+    // Health checks
     let health_routes = Router::new()
         .route("/health", get(health))
         .route("/api/v1/health", get(health));
 
-    // Auth routes — strict rate limit
+    // Auth routes
     let auth_routes = Router::new()
         .route("/api/v1/auth/register", post(auth::register))
         .route("/api/v1/auth/login", post(auth::login))
-        .route("/api/v1/auth/logout", post(auth::logout))
-        .layer(GovernorLayer::new(Arc::new(auth_governor)));
+        .route("/api/v1/auth/logout", post(auth::logout));
 
-    // Public invoice page — moderate rate limit
+    // Public invoice page
     let public_invoice = Router::new()
-        .route("/api/v1/invoices/pay/{share_token}", get(invoices::public_get))
-        .layer(GovernorLayer::new(Arc::new(public_governor)));
+        .route("/api/v1/invoices/pay/{share_token}", get(invoices::public_get));
 
     let protected = Router::new()
         // Auth
@@ -173,7 +147,7 @@ pub fn create_router(state: AppState) -> Router {
             state.clone(),
             require_auth,
         ))
-        .layer(GovernorLayer::new(Arc::new(api_governor)));
+        ;
 
     Router::new()
         .merge(health_routes)
