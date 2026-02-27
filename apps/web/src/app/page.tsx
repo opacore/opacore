@@ -185,7 +185,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-[#e8e4de] px-4 py-8">
         <div className="mx-auto max-w-3xl text-center text-sm text-[#999]">
-          <p>Watch-only only. No private keys ever. Boating accidents not covered.</p>
+          <p>Watch-only. No private keys ever. Boating accidents not covered. FKTS.</p>
         </div>
       </footer>
     </div>
