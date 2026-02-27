@@ -34,6 +34,10 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       SECURE_COOKIES: "true"
       CORS_ORIGIN: https://${DOMAIN:-localhost}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      FROM_EMAIL: ${FROM_EMAIL:-noreply@opacore.com}
+      APP_URL: ${APP_URL:-http://localhost:3000}
     volumes:
       - opacore_data:/app/data
     healthcheck:
