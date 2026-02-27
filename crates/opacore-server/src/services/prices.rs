@@ -159,6 +159,61 @@ pub fn get_cached_prices(
     Ok(prices?)
 }
 
+/// Backfill prices for a date range (e.g., last 30 days for the chart).
+pub async fn backfill_date_range(
+    pool: &DbPool,
+    api_url: &str,
+    currency: &str,
+    start_date: &str,
+    end_date: &str,
+) -> AppResult<Vec<HistoricalPrice>> {
+    // First, find which dates in the range are missing
+    let mut missing_dates: Vec<String> = Vec::new();
+    let mut current = start_date.to_string();
+    while current <= end_date.to_string() {
+        missing_dates.push(current.clone());
+        // Advance by one day
+        if let Ok(date) = chrono::NaiveDate::parse_from_str(&current, "%Y-%m-%d") {
+            current = (date + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+        } else {
+            break;
+        }
+    }
+
+    // Check which ones are already cached
+    let uncached: Vec<String> = {
+        let conn = pool.get()?;
+        missing_dates
+            .into_iter()
+            .filter(|d| {
+                conn.query_row(
+                    "SELECT 1 FROM price_history WHERE date = ?1 AND currency = ?2",
+                    rusqlite::params![d, currency],
+                    |_| Ok(()),
+                )
+                .is_err()
+            })
+            .collect()
+    };
+
+    // Fetch missing prices (with rate limiting for CoinGecko free tier)
+    for date in &uncached {
+        match get_or_fetch_price(pool, api_url, date, currency).await {
+            Ok(price) => {
+                tracing::debug!("Backfilled price for {date}: {price} {currency}");
+            }
+            Err(e) => {
+                tracing::warn!("Failed to backfill price for {date}: {e}");
+            }
+        }
+        // CoinGecko free tier rate limit
+        tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+    }
+
+    // Return all cached prices for the range
+    get_cached_prices(pool, currency, start_date, end_date)
+}
+
 /// Backfill prices for all transaction dates that don't have cached prices.
 pub async fn backfill_transaction_prices(
     pool: &DbPool,

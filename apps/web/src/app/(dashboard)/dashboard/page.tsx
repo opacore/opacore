@@ -54,9 +54,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Your Bitcoin portfolio overview</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Your Bitcoin portfolio overview</p>
+        </div>
+        {btcPrice > 0 && (
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">Bitcoin Price</p>
+            <p className="text-3xl font-bold tracking-tight">
+              ${btcPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Row 1: Stats Cards */}

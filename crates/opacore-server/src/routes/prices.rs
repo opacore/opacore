@@ -93,9 +93,23 @@ pub async fn range(
 ) -> AppResult<Json<Vec<prices::HistoricalPrice>>> {
     let currency = query.currency.as_deref().unwrap_or("usd");
 
-    let prices = prices::get_cached_prices(&state.db, currency, &query.start, &query.end)?;
+    // Check if we have cached data
+    let cached = prices::get_cached_prices(&state.db, currency, &query.start, &query.end)?;
 
-    Ok(Json(prices))
+    if cached.is_empty() {
+        // No data — backfill the range (fetches from CoinGecko and caches)
+        let result = prices::backfill_date_range(
+            &state.db,
+            &state.config.coingecko_api_url,
+            currency,
+            &query.start,
+            &query.end,
+        )
+        .await?;
+        Ok(Json(result))
+    } else {
+        Ok(Json(cached))
+    }
 }
 
 /// POST /api/v1/prices/backfill
