@@ -11,184 +11,160 @@ import {
   Zap,
   Pickaxe,
   Code,
-  ArrowRight,
   Github,
 } from 'lucide-react';
 
-const tools = [
-  {
-    icon: Wallet,
-    name: 'Portfolio Tracker',
-    description: 'Track your Bitcoin holdings across wallets, view real-time value, and monitor performance.',
-  },
-  {
-    icon: ArrowLeftRight,
-    name: 'Transaction Manager',
-    description: 'Record purchases, sales, sends, and receives with automatic price lookups and gain/loss tracking.',
-  },
-  {
-    icon: FileText,
-    name: 'Invoicing',
-    description: 'Generate and manage invoices with on-chain and Lightning payment options.',
-  },
-  {
-    icon: CreditCard,
-    name: 'Payment Processor',
-    description: 'Accept Bitcoin payments with webhooks, POS integration, and payment status tracking.',
-  },
-  {
-    icon: Server,
-    name: 'Node Monitor',
-    description: 'Monitor your Bitcoin Core, LND, or CLN node with real-time stats and alerts.',
-  },
-  {
-    icon: Shield,
-    name: 'Privacy & Coin Control',
-    description: 'UTXO management, coin selection, and PSBT support for privacy-conscious transactions.',
-  },
-  {
-    icon: Bell,
-    name: 'Alerts & Notifications',
-    description: 'Price alerts, transaction notifications, and custom triggers for your Bitcoin activity.',
-  },
-  {
-    icon: Calculator,
-    name: 'Tax Reports',
-    description: 'Generate Form 8949, capital gains summaries, and CSV exports for tax compliance.',
-  },
-  {
-    icon: Zap,
-    name: 'Nostr Integration',
-    description: 'Nostr Wallet Connect, zaps, and social payments built into your workflow.',
-  },
-  {
-    icon: Pickaxe,
-    name: 'Mining Monitor',
-    description: 'Track hashrate, earnings, pool performance, and mining hardware status.',
-  },
-  {
-    icon: Code,
-    name: 'API Layer',
-    description: 'REST and GraphQL endpoints to build your own integrations and automations.',
-  },
+const liveTools = [
+  { icon: Wallet, name: 'Portfolio Tracker' },
+  { icon: ArrowLeftRight, name: 'Transactions' },
+  { icon: Calculator, name: 'Tax Reports' },
 ];
 
-function OpacoreLogo() {
-  // Placeholder: replace src with actual logo file when available
-  // To replace: drop your logo into /public/logo.svg and update the src below
-  return (
-    <div className="mb-10 flex h-16 w-16 items-center justify-center text-4xl font-bold text-[#F7931A]">
-      ✳
-    </div>
-  );
-}
+const comingSoon = [
+  { icon: FileText, name: 'Invoicing' },
+  { icon: CreditCard, name: 'Payments' },
+  { icon: Server, name: 'Node Monitor' },
+  { icon: Shield, name: 'Coin Control' },
+  { icon: Bell, name: 'Alerts' },
+  { icon: Zap, name: 'Nostr' },
+  { icon: Pickaxe, name: 'Mining' },
+  { icon: Code, name: 'API' },
+];
 
 export default function HomePage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#FAF7F2' }}>
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="flex min-h-screen flex-col items-center justify-center px-4">
-        <OpacoreLogo />
+        <img
+          src="/logo.jpg"
+          alt="Opacore"
+          className="mb-12 h-48 w-48 object-contain mix-blend-multiply"
+        />
 
         <h1
-          className="text-center text-5xl font-bold tracking-tight text-[#1a1a1a] sm:text-6xl md:text-7xl"
+          className="max-w-3xl text-center text-5xl font-black tracking-tight text-[#1a1a1a] sm:text-6xl md:text-7xl"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
-          Bitcoin is for the world
+          Your bitcoin.
+          <br />
+          Your rules.
         </h1>
 
-        <p className="mt-6 text-center text-lg text-[#666] sm:text-xl">
-          opacore is a complete operating system for bitcoiners
+        <p className="mt-8 max-w-lg text-center text-lg leading-relaxed text-[#555]">
+          Open-source operating system for bitcoiners.
+          <br />
+          Track, manage, and control — no altcoins, no compromise.
         </p>
 
-        <div className="mt-10 flex gap-4">
+        <div className="mt-12 flex gap-4">
+          <Link
+            href="/register"
+            className="inline-flex h-13 items-center justify-center rounded-lg bg-[#F7931A] px-8 text-base font-semibold text-white transition-all hover:bg-[#e8850f] hover:shadow-lg hover:shadow-[#F7931A]/20"
+          >
+            Get Started
+          </Link>
           <a
             href="https://github.com/opacore/opacore"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-12 items-center justify-center gap-2.5 rounded-lg bg-[#1a1a1a] px-7 text-sm font-medium text-white transition-colors hover:bg-[#333]"
+            className="inline-flex h-13 items-center justify-center gap-2.5 rounded-lg border-2 border-[#1a1a1a] px-8 text-base font-semibold text-[#1a1a1a] transition-colors hover:bg-[#1a1a1a] hover:text-white"
           >
-            <Github className="h-4 w-4" />
-            Github
-          </a>
-          <a
-            href="#tools"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#F7931A] px-7 text-sm font-medium text-white transition-colors hover:bg-[#e8850f]"
-          >
-            Explore opacore
-            <ArrowRight className="h-4 w-4" />
+            <Github className="h-5 w-5" />
+            Source
           </a>
         </div>
       </section>
 
-      {/* Tools Section */}
-      <section id="tools" className="px-4 pb-24 pt-16">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-16 text-center">
-            <h2
-              className="text-3xl font-bold tracking-tight text-[#1a1a1a] sm:text-4xl"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-            >
-              Everything you need, one platform
-            </h2>
-            <p className="mt-4 text-lg text-[#666]">
-              Each tool works on its own. Together, they become your complete Bitcoin operating system.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {tools.map((tool) => (
+      {/* What's Live */}
+      <section className="px-4 pb-16 pt-24">
+        <div className="mx-auto max-w-3xl">
+          <p className="mb-8 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#F7931A]">
+            Live now
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            {liveTools.map((tool) => (
               <div
                 key={tool.name}
-                className="flex items-start gap-5 rounded-xl border border-[#e8e4de] bg-white p-6 transition-colors hover:border-[#F7931A]/40"
+                className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-[#F7931A]/20 bg-white p-8 text-center transition-all hover:border-[#F7931A] hover:shadow-lg hover:shadow-[#F7931A]/10"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F7931A]/10">
-                  <tool.icon className="h-5 w-5 text-[#F7931A]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-[#1a1a1a]">{tool.name}</h3>
-                  <p className="mt-1 text-sm text-[#666]">{tool.description}</p>
-                </div>
+                <tool.icon className="h-8 w-8 text-[#F7931A]" strokeWidth={1.5} />
+                <span className="text-sm font-bold text-[#1a1a1a]">{tool.name}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Bottom CTA */}
-      <section className="border-t border-[#e8e4de] px-4 py-20">
+      {/* Coming Soon */}
+      <section className="px-4 pb-24">
+        <div className="mx-auto max-w-3xl">
+          <p className="mb-8 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#999]">
+            On the roadmap
+          </p>
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-4">
+            {comingSoon.map((tool) => (
+              <div
+                key={tool.name}
+                className="flex flex-col items-center gap-2 rounded-xl border border-[#e8e4de] bg-white/60 p-5 text-center opacity-60"
+              >
+                <tool.icon className="h-6 w-6 text-[#999]" strokeWidth={1.5} />
+                <span className="text-xs font-medium text-[#999]">{tool.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Manifesto */}
+      <section className="border-t border-[#e8e4de] px-4 py-24">
         <div className="mx-auto max-w-2xl text-center">
           <h2
-            className="text-2xl font-bold text-[#1a1a1a] sm:text-3xl"
+            className="text-3xl font-bold text-[#1a1a1a] sm:text-4xl"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            Ready to get started?
+            Built different
           </h2>
-          <p className="mt-3 text-[#666]">
-            Self-host for free or use the managed version. Your keys, your data, your choice.
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Link
-              href="/register"
-              className="inline-flex h-12 items-center justify-center rounded-lg bg-[#F7931A] px-8 text-sm font-medium text-white transition-colors hover:bg-[#e8850f]"
-            >
-              Create Account
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex h-12 items-center justify-center rounded-lg border border-[#e8e4de] bg-white px-8 text-sm font-medium text-[#1a1a1a] transition-colors hover:bg-[#f5f2ed]"
-            >
-              Sign In
-            </Link>
+          <div className="mt-10 grid grid-cols-1 gap-6 text-left sm:grid-cols-3">
+            <div>
+              <p className="text-sm font-bold text-[#1a1a1a]">Bitcoin only</p>
+              <p className="mt-1 text-sm text-[#666]">No shitcoins. No tokens. No distractions.</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#1a1a1a]">Self-host or cloud</p>
+              <p className="mt-1 text-sm text-[#666]">Run it yourself or let us handle it.</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#1a1a1a]">Open source</p>
+              <p className="mt-1 text-sm text-[#666]">MIT licensed. Audit it. Fork it. Own it.</p>
+            </div>
           </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="px-4 pb-24">
+        <div className="mx-auto max-w-lg text-center">
+          <Link
+            href="/register"
+            className="inline-flex h-14 items-center justify-center rounded-lg bg-[#1a1a1a] px-10 text-base font-semibold text-white transition-all hover:bg-[#333]"
+          >
+            Start using opacore
+          </Link>
+          <p className="mt-4 text-sm text-[#999]">
+            Open source. Self-host or{' '}
+            <Link href="/login" className="text-[#F7931A] hover:underline">
+              sign in
+            </Link>
+            .
+          </p>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-[#e8e4de] px-4 py-8">
-        <div className="mx-auto flex max-w-4xl items-center justify-between text-sm text-[#999]">
-          <span>opacore</span>
-          <span>Open source. MIT License.</span>
+        <div className="mx-auto max-w-3xl text-center text-sm text-[#999]">
+          <p>Watch-only only. No private keys ever. Boating accidents not covered.</p>
         </div>
       </footer>
     </div>

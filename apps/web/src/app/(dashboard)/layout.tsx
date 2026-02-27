@@ -11,7 +11,6 @@ import {
   Wallet,
   Settings,
   LogOut,
-  Bitcoin,
   FileText,
   CreditCard,
   Server,
@@ -48,12 +47,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
-  // Dashboard uses dark mode
+  // Remove dark mode class if set
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-    return () => {
-      document.documentElement.classList.remove('dark');
-    };
+    document.documentElement.classList.remove('dark');
   }, []);
 
   if (isPending) {
@@ -74,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar */}
       <aside className="flex w-64 flex-col border-r bg-card">
         <div className="flex h-14 items-center gap-2 border-b px-6">
-          <Bitcoin className="h-6 w-6 text-[hsl(var(--bitcoin))]" />
+          <img src="/logo.jpg" alt="Opacore" className="h-9 w-9 object-contain mix-blend-multiply" />
           <span className="text-lg font-bold">opacore</span>
         </div>
 
