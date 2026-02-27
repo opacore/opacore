@@ -73,7 +73,7 @@ pub async fn register(
     // Create session
     let sess = session::create_session(&state.db, &user_id, None, None)?;
 
-    let cookie = build_session_cookie(sess.token);
+    let cookie = build_session_cookie(sess.token, state.config.secure_cookies);
     let user_public = UserPublic {
         id: user_id,
         email: body.email,
@@ -123,7 +123,7 @@ pub async fn login(
     }
 
     let sess = session::create_session(&state.db, &user.id, None, None)?;
-    let cookie = build_session_cookie(sess.token);
+    let cookie = build_session_cookie(sess.token, state.config.secure_cookies);
     let user_public: UserPublic = user.into();
 
     Ok((jar.add(cookie), Json(user_public)))
@@ -150,11 +150,12 @@ pub async fn me(Extension(user): Extension<User>) -> Json<UserPublic> {
     Json(user.into())
 }
 
-fn build_session_cookie(token: String) -> Cookie<'static> {
+fn build_session_cookie(token: String, secure: bool) -> Cookie<'static> {
     Cookie::build((SESSION_COOKIE, token))
         .path("/")
         .max_age(time::Duration::days(30))
         .http_only(true)
+        .secure(secure)
         .same_site(axum_extra::extract::cookie::SameSite::Lax)
         .build()
 }

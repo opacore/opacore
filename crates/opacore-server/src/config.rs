@@ -9,6 +9,7 @@ pub struct Config {
     pub esplora_url: String,
     pub coingecko_api_url: String,
     pub cors_origin: String,
+    pub secure_cookies: bool,
 }
 
 impl Config {
@@ -30,6 +31,10 @@ impl Config {
                 .unwrap_or_else(|_| "https://api.coingecko.com/api/v3".to_string()),
             cors_origin: env::var("CORS_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string()),
+            secure_cookies: env::var("SECURE_COOKIES")
+                .unwrap_or_else(|_| "false".to_string())
+                .parse()
+                .unwrap_or(false),
         }
     }
 }
