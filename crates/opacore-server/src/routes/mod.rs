@@ -1,5 +1,6 @@
 mod analysis;
 mod auth;
+mod invoices;
 mod labels;
 mod portfolios;
 mod prices;
@@ -34,7 +35,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/v1/health", get(health))
         .route("/api/v1/auth/register", post(auth::register))
         .route("/api/v1/auth/login", post(auth::login))
-        .route("/api/v1/auth/logout", post(auth::logout));
+        .route("/api/v1/auth/logout", post(auth::logout))
+        // Public invoice payment page
+        .route("/api/v1/invoices/pay/{share_token}", get(invoices::public_get));
 
     let protected = Router::new()
         // Auth
@@ -112,6 +115,22 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/api/v1/portfolios/{id}/tax/csv",
             get(tax::tax_csv),
+        )
+        // Invoices
+        .route(
+            "/api/v1/portfolios/{portfolio_id}/invoices",
+            get(invoices::list),
+        )
+        .route("/api/v1/invoices", post(invoices::create))
+        .route(
+            "/api/v1/portfolios/{portfolio_id}/invoices/{invoice_id}",
+            get(invoices::get)
+                .put(invoices::update)
+                .delete(invoices::delete),
+        )
+        .route(
+            "/api/v1/portfolios/{portfolio_id}/invoices/{invoice_id}/check-payment",
+            post(invoices::check_payment),
         )
         // Prices
         .route("/api/v1/prices/current", get(prices::current))

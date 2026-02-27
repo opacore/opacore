@@ -40,6 +40,12 @@ async fn main() {
         config: config.clone(),
     };
 
+    // Spawn background invoice payment checker
+    tokio::spawn(services::invoice_checker::run_invoice_checker(
+        state.db.clone(),
+        state.config.esplora_url.clone(),
+    ));
+
     // Build router with middleware
     let cors = CorsLayer::new()
         .allow_origin(config.cors_origin.parse::<HeaderValue>().unwrap())

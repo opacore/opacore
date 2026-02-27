@@ -316,6 +316,97 @@ export const tax = {
     `${API_BASE}/portfolios/${portfolioId}/tax/csv?year=${year}&method=${method}`,
 };
 
+// ── Invoices ──
+
+export interface Invoice {
+  id: string;
+  portfolio_id: string;
+  invoice_number: string;
+  customer_name: string;
+  customer_email: string | null;
+  description: string | null;
+  amount_sat: number;
+  amount_fiat: number | null;
+  fiat_currency: string;
+  btc_price_at_creation: number | null;
+  btc_address: string;
+  wallet_id: string | null;
+  status: string;
+  share_token: string;
+  issued_at: string | null;
+  due_at: string | null;
+  expires_at: string | null;
+  paid_at: string | null;
+  paid_txid: string | null;
+  paid_amount_sat: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicInvoice {
+  invoice_number: string;
+  customer_name: string;
+  description: string | null;
+  amount_sat: number;
+  amount_fiat: number | null;
+  fiat_currency: string;
+  btc_address: string;
+  status: string;
+  expires_at: string | null;
+  paid_at: string | null;
+  paid_txid: string | null;
+  paid_amount_sat: number | null;
+}
+
+export const invoices = {
+  list: (portfolioId: string, status?: string) => {
+    const qs = new URLSearchParams();
+    if (status) qs.set('status', status);
+    return request<Invoice[]>(`/portfolios/${portfolioId}/invoices?${qs}`);
+  },
+
+  get: (portfolioId: string, invoiceId: string) =>
+    request<Invoice>(`/portfolios/${portfolioId}/invoices/${invoiceId}`),
+
+  create: (data: {
+    portfolio_id: string;
+    invoice_number: string;
+    customer_name: string;
+    customer_email?: string;
+    description?: string;
+    amount_sat: number;
+    amount_fiat?: number;
+    fiat_currency?: string;
+    btc_price_at_creation?: number;
+    btc_address: string;
+    wallet_id?: string;
+    due_at?: string;
+    expires_at?: string;
+  }) => request<Invoice>('/invoices', { method: 'POST', body: JSON.stringify(data) }),
+
+  update: (portfolioId: string, invoiceId: string, data: {
+    status?: string;
+    customer_name?: string;
+    customer_email?: string;
+    description?: string;
+    due_at?: string;
+    expires_at?: string;
+  }) =>
+    request<Invoice>(`/portfolios/${portfolioId}/invoices/${invoiceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (portfolioId: string, invoiceId: string) =>
+    request<void>(`/portfolios/${portfolioId}/invoices/${invoiceId}`, { method: 'DELETE' }),
+
+  checkPayment: (portfolioId: string, invoiceId: string) =>
+    request<Invoice>(`/portfolios/${portfolioId}/invoices/${invoiceId}/check-payment`, { method: 'POST' }),
+
+  publicGet: (shareToken: string) =>
+    request<PublicInvoice>(`/invoices/pay/${shareToken}`),
+};
+
 // ── Labels ──
 
 export interface Label {

@@ -35,10 +35,10 @@ const activeTools = [
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/wallets', label: 'Wallets', icon: HardDrive },
   { href: '/portfolios', label: 'Portfolios', icon: Wallet },
+  { href: '/invoices', label: 'Invoicing', icon: FileText },
 ];
 
 const plannedTools = [
-  { label: 'Invoicing', icon: FileText },
   { label: 'Payments', icon: CreditCard },
   { label: 'Node Monitor', icon: Server },
   { label: 'Coin Control', icon: Shield },

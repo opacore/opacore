@@ -23,4 +23,10 @@ export {
   TableCell,
   TableCaption,
 } from './components/table';
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from './components/tabs';
 export { cn } from './lib/utils';

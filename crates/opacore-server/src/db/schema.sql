@@ -101,6 +101,38 @@ CREATE TABLE IF NOT EXISTS transaction_labels (
 );
 
 -- ============================================================
+-- INVOICES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS invoices (
+    id                  TEXT PRIMARY KEY NOT NULL,
+    portfolio_id        TEXT NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+    invoice_number      TEXT NOT NULL,
+    customer_name       TEXT NOT NULL,
+    customer_email      TEXT,
+    description         TEXT,
+    amount_sat          INTEGER NOT NULL,
+    amount_fiat         REAL,
+    fiat_currency       TEXT NOT NULL DEFAULT 'usd',
+    btc_price_at_creation REAL,
+    btc_address         TEXT NOT NULL,
+    wallet_id           TEXT REFERENCES wallets(id) ON DELETE SET NULL,
+    status              TEXT NOT NULL DEFAULT 'draft',
+    share_token         TEXT NOT NULL UNIQUE,
+    issued_at           TEXT,
+    due_at              TEXT,
+    expires_at          TEXT,
+    paid_at             TEXT,
+    paid_txid           TEXT,
+    paid_amount_sat     INTEGER,
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_portfolio_id ON invoices(portfolio_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token);
+CREATE INDEX IF NOT EXISTS idx_invoices_btc_address ON invoices(btc_address);
+
+-- ============================================================
 -- PRICE HISTORY
 -- ============================================================
 CREATE TABLE IF NOT EXISTS price_history (
