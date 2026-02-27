@@ -10,6 +10,10 @@ pub struct Config {
     pub coingecko_api_url: String,
     pub cors_origin: String,
     pub secure_cookies: bool,
+    pub resend_api_key: Option<String>,
+    pub admin_email: Option<String>,
+    pub from_email: String,
+    pub app_url: String,
 }
 
 impl Config {
@@ -35,6 +39,12 @@ impl Config {
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()
                 .unwrap_or(false),
+            resend_api_key: env::var("RESEND_API_KEY").ok(),
+            admin_email: env::var("ADMIN_EMAIL").ok(),
+            from_email: env::var("FROM_EMAIL")
+                .unwrap_or_else(|_| "noreply@opacore.com".to_string()),
+            app_url: env::var("APP_URL")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string()),
         }
     }
 }

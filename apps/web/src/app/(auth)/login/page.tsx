@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from '@/lib/auth';
+import { ApiError } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@opacore/ui';
 import { Button } from '@opacore/ui';
 import { Input } from '@opacore/ui';
@@ -25,9 +26,14 @@ export default function LoginPage() {
       await signIn(email, password);
       router.push('/dashboard');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid email or password';
-      setError(message);
-      console.error('Login error:', err);
+      if (err instanceof ApiError && err.status === 403) {
+        // Email not verified — redirect to check-email page
+        router.push(`/check-email?email=${encodeURIComponent(email)}`);
+      } else {
+        const message = err instanceof Error ? err.message : 'Invalid email or password';
+        setError(message);
+        console.error('Login error:', err);
+      }
     } finally {
       setLoading(false);
     }

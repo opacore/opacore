@@ -25,6 +25,11 @@ pub async fn require_auth(
 
     let (_session, user) = session::validate_session(&state.db, &token)?;
 
+    // Defense-in-depth: reject unverified users even if they somehow have a session
+    if !user.email_verified {
+        return Err(AppError::Forbidden("Email not verified".to_string()));
+    }
+
     request.extensions_mut().insert(user);
     Ok(next.run(request).await)
 }

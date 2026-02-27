@@ -42,7 +42,7 @@ pub fn validate_session(pool: &DbPool, token: &str) -> AppResult<(Session, User)
 
     let mut stmt = conn.prepare(
         "SELECT s.id, s.user_id, s.token, s.expires_at, s.ip_address, s.user_agent, s.created_at,
-                u.id, u.email, u.name, u.password_hash, u.default_currency, u.created_at, u.updated_at
+                u.id, u.email, u.name, u.password_hash, u.default_currency, u.email_verified, u.created_at, u.updated_at
          FROM sessions s
          JOIN users u ON u.id = s.user_id
          WHERE s.token = ?1 AND s.expires_at > ?2",
@@ -64,8 +64,9 @@ pub fn validate_session(pool: &DbPool, token: &str) -> AppResult<(Session, User)
             name: row.get(9)?,
             password_hash: row.get(10)?,
             default_currency: row.get(11)?,
-            created_at: row.get(12)?,
-            updated_at: row.get(13)?,
+            email_verified: row.get::<_, i32>(12)? != 0,
+            created_at: row.get(13)?,
+            updated_at: row.get(14)?,
         };
         Ok((session, user))
     });

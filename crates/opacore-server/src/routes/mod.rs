@@ -39,7 +39,9 @@ pub fn create_router(state: AppState) -> Router {
     let auth_routes = Router::new()
         .route("/api/v1/auth/register", post(auth::register))
         .route("/api/v1/auth/login", post(auth::login))
-        .route("/api/v1/auth/logout", post(auth::logout));
+        .route("/api/v1/auth/logout", post(auth::logout))
+        .route("/api/v1/auth/verify-email", post(auth::verify_email))
+        .route("/api/v1/auth/resend-verification", post(auth::resend_verification));
 
     // Public invoice page
     let public_invoice = Router::new()

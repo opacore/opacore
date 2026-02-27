@@ -38,13 +38,19 @@ export interface UserPublic {
   email: string;
   name: string;
   default_currency: string;
+  email_verified: boolean;
   created_at: string;
   updated_at: string;
 }
 
+export interface RegisterResponse {
+  message: string;
+  email: string;
+}
+
 export const auth = {
   register: (data: { email: string; password: string; name: string }) =>
-    request<UserPublic>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+    request<RegisterResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 
   login: (data: { email: string; password: string }) =>
     request<UserPublic>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
@@ -52,6 +58,12 @@ export const auth = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
 
   me: () => request<UserPublic>('/auth/me'),
+
+  verifyEmail: (token: string) =>
+    request<UserPublic>('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
+
+  resendVerification: (email: string) =>
+    request<{ message: string }>('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
 };
 
 // ── Portfolios ──

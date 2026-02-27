@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     name            TEXT NOT NULL,
     password_hash   TEXT NOT NULL,
     default_currency TEXT NOT NULL DEFAULT 'usd',
+    email_verified  INTEGER NOT NULL DEFAULT 1,
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
@@ -22,6 +23,16 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id              TEXT PRIMARY KEY NOT NULL,
+    user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token           TEXT NOT NULL UNIQUE,
+    expires_at      TEXT NOT NULL,
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_evt_token ON email_verification_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_evt_user_id ON email_verification_tokens(user_id);
 
 -- ============================================================
 -- PORTFOLIOS

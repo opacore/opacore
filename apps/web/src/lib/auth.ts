@@ -62,7 +62,13 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signUp(data: { name: string; email: string; password: string }) {
-  const user = await auth.register(data);
+  // Register no longer creates a session — user must verify email first
+  const result = await auth.register(data);
+  return result;
+}
+
+export async function verifyEmail(token: string) {
+  const user = await auth.verifyEmail(token);
   cachedUser = user;
   notifyListeners();
   return user;

@@ -8,6 +8,7 @@ pub struct User {
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub default_currency: String,
+    pub email_verified: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -18,6 +19,7 @@ pub struct UserPublic {
     pub email: String,
     pub name: String,
     pub default_currency: String,
+    pub email_verified: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -29,6 +31,7 @@ impl From<User> for UserPublic {
             email: u.email,
             name: u.name,
             default_currency: u.default_currency,
+            email_verified: u.email_verified,
             created_at: u.created_at,
             updated_at: u.updated_at,
         }
