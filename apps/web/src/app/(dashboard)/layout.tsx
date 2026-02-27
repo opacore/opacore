@@ -20,6 +20,11 @@ import {
   Zap,
   Pickaxe,
   Code,
+  Bot,
+  KeyRound,
+  ScrollText,
+  Repeat,
+  Gauge,
   Lock,
 } from 'lucide-react';
 import { cn } from '@opacore/ui';
@@ -40,6 +45,11 @@ const plannedTools = [
   { label: 'Nostr', icon: Zap },
   { label: 'Mining', icon: Pickaxe },
   { label: 'API', icon: Code },
+  { label: 'Opacore Agent', icon: Bot },
+  { label: 'Multisig', icon: KeyRound },
+  { label: 'Inheritance', icon: ScrollText },
+  { label: 'DCA Tracker', icon: Repeat },
+  { label: 'Fee Estimator', icon: Gauge },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

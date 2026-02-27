@@ -11,6 +11,11 @@ import {
   Zap,
   Pickaxe,
   Code,
+  Bot,
+  KeyRound,
+  ScrollText,
+  Repeat,
+  Gauge,
   Github,
 } from 'lucide-react';
 
@@ -29,6 +34,11 @@ const comingSoon = [
   { icon: Zap, name: 'Nostr' },
   { icon: Pickaxe, name: 'Mining' },
   { icon: Code, name: 'API' },
+  { icon: Bot, name: 'Opacore Agent' },
+  { icon: KeyRound, name: 'Multisig' },
+  { icon: ScrollText, name: 'Inheritance' },
+  { icon: Repeat, name: 'DCA Tracker' },
+  { icon: Gauge, name: 'Fee Estimator' },
 ];
 
 export default function HomePage() {
@@ -39,8 +49,10 @@ export default function HomePage() {
         <img
           src="/logo.jpg"
           alt="Opacore"
-          className="mb-12 h-48 w-48 object-contain mix-blend-multiply"
+          className="mb-6 h-48 w-48 object-contain mix-blend-multiply"
         />
+
+        <p className="mb-10 text-2xl font-bold tracking-wide text-[#1a1a1a]">opacore</p>
 
         <h1
           className="max-w-3xl text-center text-5xl font-black tracking-tight text-[#1a1a1a] sm:text-6xl md:text-7xl"
@@ -106,10 +118,10 @@ export default function HomePage() {
             {comingSoon.map((tool) => (
               <div
                 key={tool.name}
-                className="flex flex-col items-center gap-2 rounded-xl border border-[#e8e4de] bg-white/60 p-5 text-center opacity-60"
+                className="flex flex-col items-center gap-2 rounded-xl border border-[#ddd5cc] bg-white p-5 text-center"
               >
-                <tool.icon className="h-6 w-6 text-[#999]" strokeWidth={1.5} />
-                <span className="text-xs font-medium text-[#999]">{tool.name}</span>
+                <tool.icon className="h-6 w-6 text-[#888]" strokeWidth={1.5} />
+                <span className="text-xs font-semibold text-[#777]">{tool.name}</span>
               </div>
             ))}
           </div>
