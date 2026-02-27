@@ -4,6 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { portfolios, prices, transactions as txApi } from '@/lib/api';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { RecentTransactions } from '@/components/dashboard/recent-transactions';
+import { PriceChart } from '@/components/dashboard/price-chart';
+import { WalletOverview } from '@/components/dashboard/wallet-overview';
+import { TransactionActivity } from '@/components/dashboard/transaction-activity';
+import { TaxSummary } from '@/components/dashboard/tax-summary';
+import { NetworkStatus } from '@/components/dashboard/network-status';
+import { UtxoDistribution } from '@/components/dashboard/utxo-distribution';
+import { PlaceholderCard } from '@/components/dashboard/placeholder-card';
+import { Bell, Repeat } from 'lucide-react';
 
 export default function DashboardPage() {
   const { data: portfolioList, isLoading: portfoliosLoading } = useQuery({
@@ -51,6 +59,7 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Your Bitcoin portfolio overview</p>
       </div>
 
+      {/* Row 1: Stats Cards */}
       <StatsCards
         totalBtc={totalBtc}
         totalValue={totalValue}
@@ -58,8 +67,35 @@ export default function DashboardPage() {
         currentPrice={btcPrice}
       />
 
+      {/* Row 2: Price Chart (2 cols) + Wallet Overview (1 col) */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <PriceChart />
+        <WalletOverview portfolioId={firstPortfolioId} />
+      </div>
+
+      {/* Row 3: Transaction Activity + Tax Summary */}
       <div className="grid gap-6 lg:grid-cols-2">
+        <TransactionActivity portfolioId={firstPortfolioId} />
+        <TaxSummary portfolioId={firstPortfolioId} />
+      </div>
+
+      {/* Row 4: Recent Transactions + UTXO Distribution + Network/Placeholders */}
+      <div className="grid gap-6 lg:grid-cols-3">
         <RecentTransactions transactions={recentTxs ?? []} />
+        <UtxoDistribution portfolioId={firstPortfolioId} />
+        <div className="space-y-6">
+          <NetworkStatus />
+          <PlaceholderCard
+            title="Alerts"
+            description="Coming soon"
+            icon={Bell}
+          />
+          <PlaceholderCard
+            title="DCA Tracker"
+            description="Coming soon"
+            icon={Repeat}
+          />
+        </div>
       </div>
     </div>
   );
