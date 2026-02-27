@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {
   ArrowLeftRight,
   Wallet,
-  FileText,
+  HardDrive,
   CreditCard,
   Server,
   Shield,
@@ -21,16 +21,16 @@ import {
 
 const liveTools = [
   { icon: Wallet, name: 'Portfolio Tracker' },
+  { icon: HardDrive, name: 'Wallets' },
   { icon: ArrowLeftRight, name: 'Transactions' },
-  { icon: Calculator, name: 'Tax Reports' },
+  { icon: CreditCard, name: 'Payments' },
 ];
 
 const comingSoon = [
-  { icon: FileText, name: 'Invoicing' },
-  { icon: CreditCard, name: 'Payments' },
   { icon: Server, name: 'Node Monitor' },
   { icon: Shield, name: 'Coin Control' },
   { icon: Bell, name: 'Alerts' },
+  { icon: Calculator, name: 'Tax Reports' },
   { icon: Zap, name: 'Nostr' },
   { icon: Pickaxe, name: 'Mining' },
   { icon: Code, name: 'API' },
@@ -94,7 +94,7 @@ export default function HomePage() {
           <p className="mb-8 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#F7931A]">
             Live now
           </p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {liveTools.map((tool) => (
               <div
                 key={tool.name}
