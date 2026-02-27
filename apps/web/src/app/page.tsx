@@ -164,7 +164,16 @@ export default function HomePage() {
             Start using opacore
           </Link>
           <p className="mt-4 text-sm text-[#999]">
-            Open source. Self-host or{' '}
+            Open source.{' '}
+            <a
+              href="https://github.com/opacore/opacore"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#F7931A] hover:underline"
+            >
+              Self-host
+            </a>{' '}
+            or{' '}
             <Link href="/login" className="text-[#F7931A] hover:underline">
               sign in
             </Link>
