@@ -98,7 +98,7 @@ pub fn calculate_cost_basis(
                     date: date.clone(),
                 });
             }
-            "sell" | "send" => {
+            "sell" => {
                 let mut remaining = *amount_sat;
                 let sell_price = price;
 

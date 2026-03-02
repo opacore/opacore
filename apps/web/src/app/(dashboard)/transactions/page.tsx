@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { portfolios as portfolioApi, transactions as txApi } from '@/lib/api';
+import { portfolios as portfolioApi, transactions as txApi, prices as pricesApi } from '@/lib/api';
 import { Button, Badge } from '@opacore/ui';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@opacore/ui';
 import { ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Download } from 'lucide-react';
@@ -55,6 +55,7 @@ const TX_TYPE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
   const [reclassifyingId, setReclassifyingId] = useState<string | null>(null);
+  const backfillFiredRef = useRef(false);
 
   const { data: portfolios } = useQuery({
     queryKey: ['portfolios'],
@@ -67,7 +68,23 @@ export default function TransactionsPage() {
     queryKey: ['transactions', firstPortfolioId, 'all'],
     queryFn: () => txApi.list({ portfolioId: firstPortfolioId!, limit: 200 }),
     enabled: !!firstPortfolioId,
+    // Auto-refresh while prices are still syncing
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return false;
+      const hasUnpriced = data.some((tx) => tx.price_usd === null);
+      return hasUnpriced ? 10_000 : false;
+    },
   });
+
+  // Trigger price backfill once when unpriced transactions are detected
+  useEffect(() => {
+    if (!firstPortfolioId || backfillFiredRef.current || !transactions) return;
+    if (transactions.some((tx) => tx.price_usd === null)) {
+      backfillFiredRef.current = true;
+      pricesApi.backfillPortfolio(firstPortfolioId).catch(() => {});
+    }
+  }, [firstPortfolioId, transactions]);
 
   const reclassify = useMutation({
     mutationFn: ({ txId, txType }: { txId: string; txType: string }) =>
