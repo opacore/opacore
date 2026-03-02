@@ -152,6 +152,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/v1/prices/historical", get(prices::historical))
         .route("/api/v1/prices/range", get(prices::range))
         .route("/api/v1/prices/backfill", post(prices::backfill))
+        .route("/api/v1/portfolios/{portfolio_id}/prices/backfill", post(prices::backfill_portfolio))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             require_auth,

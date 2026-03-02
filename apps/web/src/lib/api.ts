@@ -226,6 +226,9 @@ export const prices = {
 
   range: (start: string, end: string, currency = 'usd') =>
     request<HistoricalPrice[]>(`/prices/range?start=${start}&end=${end}&currency=${currency}`),
+
+  backfillPortfolio: (portfolioId: string) =>
+    request<void>(`/portfolios/${portfolioId}/prices/backfill`, { method: 'POST' }),
 };
 
 // ── Wallets ──

@@ -312,6 +312,35 @@ pub async fn backfill_wallet_prices(
     );
 }
 
+/// Backfill price_usd for all transactions across every wallet in a portfolio.
+/// Designed to run as a background task — errors are logged, not propagated.
+pub async fn backfill_portfolio_prices(pool: DbPool, api_url: String, portfolio_id: String) {
+    // Collect wallet IDs for this portfolio
+    let wallet_ids: Vec<String> = {
+        let conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("backfill_portfolio_prices: db error: {e}");
+                return;
+            }
+        };
+        let mut stmt = match conn.prepare("SELECT id FROM wallets WHERE portfolio_id = ?1") {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("backfill_portfolio_prices: prepare error: {e}");
+                return;
+            }
+        };
+        stmt.query_map(rusqlite::params![portfolio_id], |row| row.get(0))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    };
+
+    for wallet_id in wallet_ids {
+        backfill_wallet_prices(pool.clone(), api_url.clone(), wallet_id).await;
+    }
+}
+
 /// Backfill prices for all transaction dates that don't have cached prices.
 pub async fn backfill_transaction_prices(
     pool: &DbPool,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { portfolios as portfoliosApi, transactions as txApi, prices as pricesApi } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@opacore/ui';
@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   Legend,
 } from 'recharts';
-import { Repeat, TrendingUp, TrendingDown } from 'lucide-react';
+import { Repeat, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { cn } from '@opacore/ui';
 
 function satsToBtc(sats: number) {
@@ -57,21 +57,39 @@ export default function DcaTrackerPage() {
     queryKey: ['transactions', portfolioId, 'buy'],
     queryFn: () => txApi.list({ portfolioId: portfolioId!, txType: 'buy', limit: 1000 }),
     enabled: !!portfolioId,
+    refetchInterval: 15_000,
   });
 
   const { data: receives, isLoading: receiveLoading } = useQuery({
     queryKey: ['transactions', portfolioId, 'receive'],
     queryFn: () => txApi.list({ portfolioId: portfolioId!, txType: 'receive', limit: 1000 }),
     enabled: !!portfolioId,
+    refetchInterval: 15_000,
   });
 
   const txLoading = buyLoading || receiveLoading;
 
-  // Combine manual buys + wallet receives (synced transactions come in as 'receive')
+  // Combine manual buys + wallet receives
   const buyTxs = useMemo(() => {
     const all = [...(manualBuys ?? []), ...(receives ?? [])];
     return all.sort((a, b) => new Date(a.transacted_at).getTime() - new Date(b.transacted_at).getTime());
   }, [manualBuys, receives]);
+
+  // Detect transactions missing price data
+  const unpricedCount = useMemo(
+    () => buyTxs.filter((tx) => tx.price_usd === null).length,
+    [buyTxs],
+  );
+
+  // Auto-trigger backfill once per portfolio load when unpriced transactions exist
+  const backfillFiredRef = useRef(false);
+  useEffect(() => {
+    if (!portfolioId || backfillFiredRef.current) return;
+    if (buyTxs.length > 0 && unpricedCount > 0) {
+      backfillFiredRef.current = true;
+      pricesApi.backfillPortfolio(portfolioId).catch(() => {/* silent — background task */});
+    }
+  }, [portfolioId, buyTxs.length, unpricedCount]);
 
   const { data: currentPrice } = useQuery({
     queryKey: ['prices', 'current'],
@@ -82,10 +100,7 @@ export default function DcaTrackerPage() {
   // Determine date range from first buy to today
   const firstBuyDate = useMemo(() => {
     if (!buyTxs?.length) return null;
-    const sorted = [...buyTxs].sort(
-      (a, b) => new Date(a.transacted_at).getTime() - new Date(b.transacted_at).getTime(),
-    );
-    return sorted[0]?.transacted_at.slice(0, 10) ?? null;
+    return buyTxs[0]?.transacted_at.slice(0, 10) ?? null;
   }, [buyTxs]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -97,28 +112,32 @@ export default function DcaTrackerPage() {
     enabled: !!firstBuyDate,
   });
 
-  // Compute DCA stats
+  // Compute DCA stats — only accurate when all transactions have price data
   const stats = useMemo(() => {
     if (!buyTxs?.length) return null;
+
     let totalSats = 0;
     let totalInvestedUsd = 0;
+    let pricedCount = 0;
 
     for (const tx of buyTxs) {
       totalSats += tx.amount_sat;
       if (tx.price_usd) {
         totalInvestedUsd += satsToBtc(tx.amount_sat) * tx.price_usd;
+        pricedCount++;
       } else if (tx.fiat_amount) {
         totalInvestedUsd += tx.fiat_amount;
+        pricedCount++;
       }
     }
 
     const totalBtc = satsToBtc(totalSats);
-    const avgBuyPrice = totalBtc > 0 ? totalInvestedUsd / totalBtc : 0;
+    const avgBuyPrice = totalBtc > 0 && totalInvestedUsd > 0 ? totalInvestedUsd / totalBtc : 0;
     const currentValue = currentPrice ? totalBtc * currentPrice.price : null;
-    const pnl = currentValue !== null ? currentValue - totalInvestedUsd : null;
+    const pnl = currentValue !== null && totalInvestedUsd > 0 ? currentValue - totalInvestedUsd : null;
     const pnlPct = pnl !== null && totalInvestedUsd > 0 ? (pnl / totalInvestedUsd) * 100 : null;
 
-    return { totalBtc, totalInvestedUsd, avgBuyPrice, currentValue, pnl, pnlPct, count: buyTxs.length };
+    return { totalBtc, totalInvestedUsd, avgBuyPrice, currentValue, pnl, pnlPct, count: buyTxs.length, pricedCount };
   }, [buyTxs, currentPrice]);
 
   // Build chart data: price history + scatter buy points
@@ -153,6 +172,8 @@ export default function DcaTrackerPage() {
   }, [priceHistory, buyTxs]);
 
   const isLoading = txLoading || pricesLoading;
+  const isSyncingPrices = !txLoading && unpricedCount > 0;
+  const statsReady = stats !== null && stats.pricedCount === stats.count;
   const isProfit = (stats?.pnl ?? 0) >= 0;
 
   // Sorted purchases for the table (newest first)
@@ -181,74 +202,100 @@ export default function DcaTrackerPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Price sync banner */}
+      {isSyncingPrices && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          <RefreshCw className="h-4 w-4 animate-spin shrink-0" />
+          <span>
+            Syncing price data for {unpricedCount} transaction{unpricedCount !== 1 ? 's' : ''}
+            &mdash; stats will update automatically.
+          </span>
+        </div>
+      )}
+
+      {/* Empty state */}
       {!isLoading && !stats && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            No transactions found. Connect a wallet and sync, or add purchases manually.
+            No transactions found. Connect a wallet and sync to get started.
           </CardContent>
         </Card>
       )}
 
       {stats && (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Invested</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatUsd(stats.totalInvestedUsd)}</div>
-                <div className="text-xs text-muted-foreground mt-1">{stats.count} purchase{stats.count !== 1 ? 's' : ''}</div>
-              </CardContent>
-            </Card>
+          {/* Stats cards — skeleton while prices are syncing */}
+          {statsReady ? (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Invested</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatUsd(stats.totalInvestedUsd)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{stats.count} transaction{stats.count !== 1 ? 's' : ''}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Buy Price</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatUsd(stats.avgBuyPrice)}</div>
-                <div className="text-xs text-muted-foreground mt-1">{formatBtc(stats.totalBtc)} accumulated</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Buy Price</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatUsd(stats.avgBuyPrice)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{formatBtc(stats.totalBtc)} accumulated</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Value</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stats.currentValue !== null ? formatUsd(stats.currentValue) : '—'}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {currentPrice ? `@ ${formatUsd(currentPrice.price)}` : ''}
-                </div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Value</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.currentValue !== null ? formatUsd(stats.currentValue) : '—'}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {currentPrice ? `@ ${formatUsd(currentPrice.price)}` : ''}
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className={cn('border-2', isProfit ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50')}>
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Unrealized P&L</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={cn('flex items-center gap-1.5 text-2xl font-bold', isProfit ? 'text-green-600' : 'text-red-600')}>
-                  {isProfit ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                  {stats.pnl !== null ? formatUsd(Math.abs(stats.pnl)) : '—'}
-                </div>
-                <div className={cn('text-xs mt-1 font-medium', isProfit ? 'text-green-600' : 'text-red-600')}>
-                  {stats.pnlPct !== null ? `${isProfit ? '+' : '-'}${Math.abs(stats.pnlPct).toFixed(1)}%` : ''}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <Card className={cn('border-2', isProfit ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50')}>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Unrealized P&L</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={cn('flex items-center gap-1.5 text-2xl font-bold', isProfit ? 'text-green-600' : 'text-red-600')}>
+                    {isProfit ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                    {stats.pnl !== null ? formatUsd(Math.abs(stats.pnl)) : '—'}
+                  </div>
+                  <div className={cn('text-xs mt-1 font-medium', isProfit ? 'text-green-600' : 'text-red-600')}>
+                    {stats.pnlPct !== null ? `${isProfit ? '+' : '-'}${Math.abs(stats.pnlPct).toFixed(1)}%` : ''}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardContent className="pt-6">
+                    <div className="h-8 w-24 animate-pulse rounded bg-muted mb-2" />
+                    <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Price vs Your Purchases</CardTitle>
               <p className="text-xs text-muted-foreground">
-                Orange dots = your buys · Dashed line = your avg cost ({formatUsd(stats.avgBuyPrice)})
+                Orange dots = your buys · Dashed line = your avg cost
+                {statsReady ? ` (${formatUsd(stats.avgBuyPrice)})` : ''}
               </p>
             </CardHeader>
             <CardContent>
@@ -306,12 +353,14 @@ export default function DcaTrackerPage() {
                         );
                       }}
                     />
-                    <ReferenceLine
-                      y={stats.avgBuyPrice}
-                      stroke="#F7931A"
-                      strokeDasharray="4 4"
-                      strokeWidth={1.5}
-                    />
+                    {statsReady && (
+                      <ReferenceLine
+                        y={stats.avgBuyPrice}
+                        stroke="#F7931A"
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                      />
+                    )}
                     <Area
                       type="monotone"
                       dataKey="price"
@@ -366,23 +415,29 @@ export default function DcaTrackerPage() {
                               {btc.toFixed(6)} BTC
                             </td>
                             <td className="px-4 py-3 text-right text-muted-foreground">
-                              {tx.price_usd ? formatUsd(tx.price_usd) : '—'}
+                              {tx.price_usd ? formatUsd(tx.price_usd) : (
+                                <span className="text-amber-500 text-xs">syncing…</span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-right font-medium">
-                              {cost ? formatUsd(cost) : '—'}
+                              {cost ? formatUsd(cost) : (
+                                <span className="text-amber-500 text-xs">syncing…</span>
+                              )}
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
-                    <tfoot className="border-t bg-muted/20">
-                      <tr>
-                        <td className="px-4 py-2.5 text-sm font-medium">Total</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-medium">{formatBtc(stats.totalBtc)}</td>
-                        <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">avg {formatUsd(stats.avgBuyPrice)}</td>
-                        <td className="px-4 py-2.5 text-right font-bold">{formatUsd(stats.totalInvestedUsd)}</td>
-                      </tr>
-                    </tfoot>
+                    {statsReady && (
+                      <tfoot className="border-t bg-muted/20">
+                        <tr>
+                          <td className="px-4 py-2.5 text-sm font-medium">Total</td>
+                          <td className="px-4 py-2.5 text-right font-mono font-medium">{formatBtc(stats.totalBtc)}</td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">avg {formatUsd(stats.avgBuyPrice)}</td>
+                          <td className="px-4 py-2.5 text-right font-bold">{formatUsd(stats.totalInvestedUsd)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </CardContent>

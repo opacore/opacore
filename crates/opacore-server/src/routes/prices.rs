@@ -1,5 +1,6 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
+    http::StatusCode,
     Extension, Json,
 };
 use serde::{Deserialize, Serialize};
@@ -110,6 +111,36 @@ pub async fn range(
     } else {
         Ok(Json(cached))
     }
+}
+
+/// POST /api/v1/portfolios/:portfolio_id/prices/backfill
+/// Fires a background task to fill price_usd on all transactions in this portfolio.
+/// Returns 202 Accepted immediately.
+pub async fn backfill_portfolio(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Path(portfolio_id): Path<String>,
+) -> AppResult<StatusCode> {
+    let exists: bool = {
+        let conn = state.db.get()?;
+        conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM portfolios WHERE id = ?1 AND user_id = ?2)",
+            rusqlite::params![portfolio_id, user.id],
+            |row| row.get(0),
+        )?
+    };
+
+    if !exists {
+        return Err(AppError::NotFound("Portfolio not found".into()));
+    }
+
+    let pool = state.db.clone();
+    let api_url = state.config.coingecko_api_url.clone();
+    tokio::spawn(async move {
+        prices::backfill_portfolio_prices(pool, api_url, portfolio_id).await;
+    });
+
+    Ok(StatusCode::ACCEPTED)
 }
 
 /// POST /api/v1/prices/backfill

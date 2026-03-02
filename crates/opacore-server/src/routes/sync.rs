@@ -113,8 +113,8 @@ pub async fn sync_wallet(
         .await?
     };
 
-    // Kick off price backfill in the background so sync response returns immediately
-    if result.new_transactions > 0 {
+    // Always kick off price backfill in background — skips already-priced transactions
+    {
         let pool = state.db.clone();
         let api_url = state.config.coingecko_api_url.clone();
         let wid = wallet_id.clone();
