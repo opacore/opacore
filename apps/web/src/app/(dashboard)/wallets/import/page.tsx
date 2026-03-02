@@ -34,7 +34,8 @@ export default function ImportWalletPage() {
 
       // Auto-detect: if user selected xpub but pasted a Bitcoin address, switch to address type
       let walletType = form.walletType;
-      const val = form.value.trim();
+      // Normalize curly/smart quotes to straight ASCII apostrophes (common copy-paste issue with descriptors)
+      const val = form.value.trim().replace(/[\u2018\u2019\u02BC]/g, "'");
       if (walletType === 'xpub' && (val.startsWith('1') || val.startsWith('3') || val.startsWith('bc1') || val.startsWith('tb1'))) {
         if (!val.startsWith('xpub') && !val.startsWith('ypub') && !val.startsWith('zpub') && !val.startsWith('tpub')) {
           walletType = 'address';
