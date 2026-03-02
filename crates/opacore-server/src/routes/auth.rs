@@ -82,6 +82,16 @@ pub async fn register(
         }
     }
 
+    // Create a default portfolio for new users so they can immediately import wallets
+    {
+        let conn = state.db.get()?;
+        let portfolio_id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO portfolios (id, user_id, name, description, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![portfolio_id, user_id, "My Portfolio", Option::<String>::None, now, now],
+        )?;
+    }
+
     // Create verification token
     let token = verification::create_verification_token(&state.db, &user_id)?;
 

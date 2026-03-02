@@ -14,7 +14,7 @@ import {
   Input,
   Label,
 } from '@opacore/ui';
-import { Plus, Wallet } from 'lucide-react';
+import { Plus, Wallet, Trash2 } from 'lucide-react';
 
 export default function PortfoliosPage() {
   const queryClient = useQueryClient();
@@ -34,6 +34,13 @@ export default function PortfoliosPage() {
       setShowCreate(false);
       setName('');
       setDescription('');
+    },
+  });
+
+  const deletePortfolio = useMutation({
+    mutationFn: (id: string) => portfolioApi.delete(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['portfolios'] });
     },
   });
 
@@ -111,19 +118,33 @@ export default function PortfoliosPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {portfolios.map((portfolio) => (
-            <Link key={portfolio.id} href={`/portfolios/${portfolio.id}`}>
-              <Card className="transition-colors hover:bg-accent/50 cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-[hsl(var(--bitcoin))]" />
-                    {portfolio.name}
-                  </CardTitle>
-                  {portfolio.description && (
-                    <CardDescription>{portfolio.description}</CardDescription>
-                  )}
-                </CardHeader>
-              </Card>
-            </Link>
+            <Card key={portfolio.id} className="transition-colors hover:bg-accent/50">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <Link href={`/portfolios/${portfolio.id}`} className="flex-1">
+                    <CardTitle className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5 text-[hsl(var(--bitcoin))]" />
+                      {portfolio.name}
+                    </CardTitle>
+                    {portfolio.description && (
+                      <CardDescription>{portfolio.description}</CardDescription>
+                    )}
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      if (confirm(`Delete "${portfolio.name}"? This will also delete all associated wallets and transactions.`)) {
+                        deletePortfolio.mutate(portfolio.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+            </Card>
           ))}
         </div>
       )}
