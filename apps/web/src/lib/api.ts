@@ -199,6 +199,16 @@ export const transactions = {
       body: JSON.stringify(data),
     }),
 
+  classify: (portfolioId: string, ids: string[], txType: string) =>
+    Promise.all(
+      ids.map((id) =>
+        request<Transaction>(`/portfolios/${portfolioId}/transactions/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ tx_type: txType }),
+        }),
+      ),
+    ),
+
   delete: (portfolioId: string, txId: string) =>
     request<void>(`/portfolios/${portfolioId}/transactions/${txId}`, { method: 'DELETE' }),
 };
