@@ -17,6 +17,11 @@ pub fn parse_network(network: &str) -> AppResult<Network> {
     }
 }
 
+/// Strip non-ASCII characters from a descriptor string (e.g. curly quotes from copy-paste).
+fn sanitize_descriptor(s: &str) -> String {
+    s.chars().filter(|c| c.is_ascii()).collect()
+}
+
 /// Build a wpkh descriptor pair (external + internal) from an xpub, descriptor, or single address.
 ///
 /// If the user provides a full descriptor string, it's returned as-is for external,
@@ -30,7 +35,7 @@ pub fn build_descriptors(
     address: Option<&str>,
 ) -> AppResult<(String, String)> {
     if let Some(desc) = descriptor {
-        let external = desc.to_string();
+        let external = sanitize_descriptor(desc);
         let internal = if external.contains("/0/*") {
             external.replace("/0/*", "/1/*")
         } else {
