@@ -246,25 +246,28 @@ pub async fn address_sync(
     let utxo_url = format!("{esplora_url}/address/{address}/utxo");
     tracing::debug!("Fetching UTXOs from {utxo_url}");
 
-    let utxo_resp = http
+    let balance_sat: u64 = match http
         .get(&utxo_url)
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| AppError::Internal(format!("Esplora UTXO request failed for {utxo_url}: {e}")))?;
-
-    if !utxo_resp.status().is_success() {
-        let status = utxo_resp.status();
-        let body = utxo_resp.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!("Esplora returned {status} for {utxo_url}: {body}")));
-    }
-
-    let utxos: Vec<EsploraUtxo> = utxo_resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("Esplora UTXO parse failed: {e}")))?;
-
-    let balance_sat: u64 = utxos.iter().map(|u| u.value).sum();
+    {
+        Ok(resp) if resp.status().is_success() => {
+            resp.json::<Vec<EsploraUtxo>>()
+                .await
+                .map(|utxos| utxos.iter().map(|u| u.value).sum())
+                .unwrap_or(0)
+        }
+        Ok(resp) => {
+            let body = resp.text().await.unwrap_or_default();
+            tracing::warn!("UTXO fetch skipped for {address}: {body}");
+            0
+        }
+        Err(e) => {
+            tracing::warn!("UTXO fetch failed for {address}: {e}");
+            0
+        }
+    };
     let total_txs = txs.len();
     let mut new_tx_count = 0;
     let mut max_height: Option<u32> = None;
