@@ -24,7 +24,7 @@ function VerifyContent() {
     verifyEmail(token)
       .then(() => {
         setStatus('success');
-        setTimeout(() => router.push('/dashboard'), 2000);
+        setTimeout(() => router.push('/wallets/import'), 2000);
       })
       .catch((err) => {
         setStatus('error');
@@ -51,7 +51,7 @@ function VerifyContent() {
         </CardTitle>
         <CardDescription>
           {status === 'loading' && 'Please wait...'}
-          {status === 'success' && 'Your account is now active. Redirecting to dashboard...'}
+          {status === 'success' && 'Your account is now active. Let\'s import your first wallet...'}
           {status === 'error' && error}
         </CardDescription>
       </CardHeader>
