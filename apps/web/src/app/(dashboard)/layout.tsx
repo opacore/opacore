@@ -21,7 +21,6 @@ import {
   Pickaxe,
   Code,
   Bot,
-  KeyRound,
   ScrollText,
   Repeat,
   Gauge,
@@ -50,7 +49,6 @@ const plannedTools = [
   { label: 'Mining', icon: Pickaxe },
   { label: 'API', icon: Code },
   { label: 'Opacore Agent', icon: Bot },
-  { label: 'Multisig', icon: KeyRound },
   { label: 'Inheritance', icon: ScrollText },
 ];
 
