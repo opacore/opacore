@@ -11,10 +11,9 @@ import { TaxSummary } from '@/components/dashboard/tax-summary';
 import { NetworkStatus } from '@/components/dashboard/network-status';
 import { UtxoDistribution } from '@/components/dashboard/utxo-distribution';
 import { PlaceholderCard } from '@/components/dashboard/placeholder-card';
+import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { wallets as walletsApi } from '@/lib/api';
-import { Bell, HardDrive, ArrowRight } from 'lucide-react';
-
-import Link from 'next/link';
+import { Bell } from 'lucide-react';
 
 export default function DashboardPage() {
   const { data: portfolioList, isLoading: portfoliosLoading } = useQuery({
@@ -61,35 +60,6 @@ export default function DashboardPage() {
     );
   }
 
-  // No wallets yet — show onboarding prompt
-  const hasWallets = walletList && walletList.length > 0;
-  if (!portfoliosLoading && firstPortfolioId && !hasWallets && walletList !== undefined) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Your Bitcoin portfolio overview</p>
-        </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted py-24 text-center">
-          <div className="mb-4 rounded-full bg-muted p-4">
-            <HardDrive className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h2 className="text-xl font-semibold">Connect your first wallet</h2>
-          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            Import a watch-only wallet using an xpub, zpub, output descriptor, or single address to start tracking your Bitcoin.
-          </p>
-          <Link
-            href="/wallets/import"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#F7931A] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#e8850f] transition-colors"
-          >
-            Import Wallet
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -106,6 +76,9 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Onboarding checklist — auto-hides once wallet is imported, synced, and has transactions */}
+      <OnboardingChecklist wallets={walletList} transactions={recentTxs} />
 
       {/* Row 1: Stats Cards */}
       <StatsCards
