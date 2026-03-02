@@ -207,6 +207,40 @@ pub async fn verify_email(
     Ok((jar.add(cookie), Json(user_public)))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+pub async fn change_password(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Json(body): Json<ChangePasswordRequest>,
+) -> AppResult<impl IntoResponse> {
+    if body.new_password.len() < 8 {
+        return Err(AppError::BadRequest(
+            "New password must be at least 8 characters".to_string(),
+        ));
+    }
+
+    let valid = password::verify_password(&body.current_password, &user.password_hash)?;
+    if !valid {
+        return Err(AppError::Unauthorized("Current password is incorrect".to_string()));
+    }
+
+    let new_hash = password::hash_password(&body.new_password)?;
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+
+    let conn = state.db.get()?;
+    conn.execute(
+        "UPDATE users SET password_hash = ?1, updated_at = ?2 WHERE id = ?3",
+        rusqlite::params![new_hash, now, user.id],
+    )?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub async fn resend_verification(
     State(state): State<AppState>,
     Json(body): Json<ResendVerificationRequest>,

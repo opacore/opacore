@@ -91,8 +91,8 @@ export default function WalletsPage() {
                 <TableHead>Label</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Network</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
                 <TableHead>Last Synced</TableHead>
-                <TableHead>Block Height</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -112,6 +112,11 @@ export default function WalletsPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{wallet.network}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {wallet.balance_sat > 0
+                      ? `${(wallet.balance_sat / 1e8).toFixed(8)} BTC`
+                      : wallet.last_synced_at ? '0 BTC' : '—'}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {wallet.last_synced_at

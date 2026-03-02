@@ -50,5 +50,18 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Migration: add balance_sat to wallets
+    let has_balance_sat: bool = conn
+        .prepare("SELECT COUNT(*) FROM pragma_table_info('wallets') WHERE name='balance_sat'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_balance_sat {
+        conn.execute_batch(
+            "ALTER TABLE wallets ADD COLUMN balance_sat INTEGER NOT NULL DEFAULT 0;",
+        )?;
+    }
+
     Ok(())
 }

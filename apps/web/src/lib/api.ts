@@ -64,6 +64,9 @@ export const auth = {
 
   resendVerification: (email: string) =>
     request<{ message: string }>('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    request<void>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ── Portfolios ──
@@ -230,6 +233,7 @@ export interface Wallet {
   gap_limit: number;
   last_synced_at: string | null;
   last_sync_height: number | null;
+  balance_sat: number;
   created_at: string;
   updated_at: string;
 }

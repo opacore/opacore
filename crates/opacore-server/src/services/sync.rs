@@ -139,20 +139,21 @@ pub async fn full_scan(
     let now = chrono::Utc::now()
         .format("%Y-%m-%dT%H:%M:%S%.3fZ")
         .to_string();
+    let balance_total = balance.total().to_sat();
     app_conn.execute(
-        "UPDATE wallets SET last_synced_at = ?1, last_sync_height = ?2, updated_at = ?3 WHERE id = ?4",
-        rusqlite::params![now, max_height.map(|h| h as i64), now, app_wallet_id],
+        "UPDATE wallets SET last_synced_at = ?1, last_sync_height = ?2, balance_sat = ?3, updated_at = ?4 WHERE id = ?5",
+        rusqlite::params![now, max_height.map(|h| h as i64), balance_total as i64, now, app_wallet_id],
     )?;
 
     tracing::info!(
         "Wallet {app_wallet_id} sync complete: {} total txs, {} new, balance {} sats",
-        total_txs, new_tx_count, balance.total().to_sat()
+        total_txs, new_tx_count, balance_total
     );
 
     Ok(SyncResult {
         transactions_found: total_txs,
         new_transactions: new_tx_count,
-        balance_sat: balance.total().to_sat(),
+        balance_sat: balance_total,
         last_sync_height: max_height,
     })
 }
@@ -341,8 +342,8 @@ pub async fn address_sync(
     // Update wallet sync metadata
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
     app_conn.execute(
-        "UPDATE wallets SET last_synced_at = ?1, last_sync_height = ?2, updated_at = ?3 WHERE id = ?4",
-        rusqlite::params![now, max_height.map(|h| h as i64), now, app_wallet_id],
+        "UPDATE wallets SET last_synced_at = ?1, last_sync_height = ?2, balance_sat = ?3, updated_at = ?4 WHERE id = ?5",
+        rusqlite::params![now, max_height.map(|h| h as i64), balance_sat as i64, now, app_wallet_id],
     )?;
 
     tracing::info!(

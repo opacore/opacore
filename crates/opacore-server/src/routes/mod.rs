@@ -50,6 +50,7 @@ pub fn create_router(state: AppState) -> Router {
     let protected = Router::new()
         // Auth
         .route("/api/v1/auth/me", get(auth::me))
+        .route("/api/v1/auth/change-password", post(auth::change_password))
         // Portfolios
         .route("/api/v1/portfolios", get(portfolios::list).post(portfolios::create))
         .route(

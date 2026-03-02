@@ -24,6 +24,7 @@ pub struct Wallet {
     pub gap_limit: i64,
     pub last_synced_at: Option<String>,
     pub last_sync_height: Option<i64>,
+    pub balance_sat: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -61,12 +62,13 @@ fn row_to_wallet(row: &rusqlite::Row) -> rusqlite::Result<Wallet> {
         gap_limit: row.get(9)?,
         last_synced_at: row.get(10)?,
         last_sync_height: row.get(11)?,
-        created_at: row.get(12)?,
-        updated_at: row.get(13)?,
+        balance_sat: row.get(12)?,
+        created_at: row.get(13)?,
+        updated_at: row.get(14)?,
     })
 }
 
-const WALLET_COLS: &str = "id, portfolio_id, label, wallet_type, descriptor, xpub, address, network, derivation_path, gap_limit, last_synced_at, last_sync_height, created_at, updated_at";
+const WALLET_COLS: &str = "id, portfolio_id, label, wallet_type, descriptor, xpub, address, network, derivation_path, gap_limit, last_synced_at, last_sync_height, balance_sat, created_at, updated_at";
 
 fn verify_portfolio_ownership(
     conn: &rusqlite::Connection,
@@ -162,6 +164,7 @@ pub async fn create(
         gap_limit,
         last_synced_at: None,
         last_sync_height: None,
+        balance_sat: 0,
         created_at: now.clone(),
         updated_at: now,
     };
