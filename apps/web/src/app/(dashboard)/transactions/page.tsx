@@ -5,8 +5,36 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portfolios as portfolioApi, transactions as txApi } from '@/lib/api';
 import { Button, Badge } from '@opacore/ui';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@opacore/ui';
-import { ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Download } from 'lucide-react';
+import type { Transaction } from '@/lib/api';
 import { cn } from '@opacore/ui';
+
+function downloadCsv(txs: Transaction[]) {
+  const headers = ['Date', 'Type', 'Amount (BTC)', 'Amount (SAT)', 'Price (USD)', 'Total (USD)', 'Fee (SAT)', 'Source', 'TXID'];
+  const rows = txs.map((tx) => {
+    const btc = (tx.amount_sat / 1e8).toFixed(8);
+    const total = tx.price_usd ? ((tx.amount_sat / 1e8) * tx.price_usd).toFixed(2) : '';
+    return [
+      tx.transacted_at.slice(0, 10),
+      tx.tx_type,
+      btc,
+      tx.amount_sat.toString(),
+      tx.price_usd?.toFixed(2) ?? '',
+      total,
+      tx.fee_sat?.toString() ?? '',
+      tx.source,
+      tx.txid ?? '',
+    ];
+  });
+  const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const TX_TYPE_LABEL: Record<string, string> = {
   buy: 'Buy',
@@ -64,6 +92,16 @@ export default function TransactionsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
           <p className="text-muted-foreground">Your synced Bitcoin transaction history</p>
         </div>
+        {transactions && transactions.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsv(transactions)}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        )}
       </div>
 
       {/* Classification banner */}
