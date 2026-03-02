@@ -39,13 +39,13 @@ const activeTools = [
   { href: '/payments', label: 'Payments', icon: CreditCard },
   { href: '/fee-estimator', label: 'Fee Estimator', icon: Gauge },
   { href: '/dca-tracker', label: 'DCA Tracker', icon: Repeat },
+  { href: '/tax-reports', label: 'Tax Reports', icon: Calculator },
 ];
 
 const plannedTools = [
   { label: 'Node Monitor', icon: Server },
   { label: 'Coin Control', icon: Shield },
   { label: 'Alerts', icon: Bell },
-  { label: 'Tax Reports', icon: Calculator },
   { label: 'Nostr', icon: Zap },
   { label: 'Mining', icon: Pickaxe },
   { label: 'API', icon: Code },
