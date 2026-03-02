@@ -20,6 +20,7 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'addresses' | 'utxos' | 'transactions'>('addresses');
   const [syncMessage, setSyncMessage] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: portfolios } = useQuery({
     queryKey: ['portfolios'],
@@ -122,18 +123,31 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
             <RefreshCw className={`mr-2 h-4 w-4 ${syncWallet.isPending ? 'animate-spin' : ''}`} />
             {syncWallet.isPending ? 'Syncing...' : 'Sync Now'}
           </Button>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              if (confirm('Delete this wallet? This will not delete associated transactions.')) {
-                deleteWallet.mutate();
-              }
-            }}
-            disabled={deleteWallet.isPending || !firstPortfolioId}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </Button>
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Delete wallet?</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => deleteWallet.mutate()}
+                disabled={deleteWallet.isPending}
+              >
+                {deleteWallet.isPending ? 'Deleting...' : 'Confirm'}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmDelete(true)}
+              disabled={!firstPortfolioId}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 

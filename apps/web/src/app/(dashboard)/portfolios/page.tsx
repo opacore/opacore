@@ -26,6 +26,7 @@ export default function PortfoliosPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const createPortfolio = useMutation({
     mutationFn: (data: { name: string; description?: string }) => portfolioApi.create(data),
@@ -130,18 +131,30 @@ export default function PortfoliosPage() {
                       <CardDescription>{portfolio.description}</CardDescription>
                     )}
                   </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => {
-                      if (confirm(`Delete "${portfolio.name}"? This will also delete all associated wallets and transactions.`)) {
-                        deletePortfolio.mutate(portfolio.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {confirmDeleteId === portfolio.id ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deletePortfolio.mutate(portfolio.id)}
+                        disabled={deletePortfolio.isPending}
+                      >
+                        {deletePortfolio.isPending ? 'Deleting...' : 'Delete'}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setConfirmDeleteId(portfolio.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
             </Card>
