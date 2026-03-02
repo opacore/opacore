@@ -7,12 +7,13 @@ import { portfolios as portfolioApi, wallets as walletApi } from '@/lib/api';
 import type { Wallet, SyncResult } from '@/lib/api';
 import { Button, Badge } from '@opacore/ui';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@opacore/ui';
-import { Plus, RefreshCw, HardDrive } from 'lucide-react';
+import { Plus, RefreshCw, HardDrive, Trash2 } from 'lucide-react';
 
 export default function WalletsPage() {
   const queryClient = useQueryClient();
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<{ walletId: string; result: SyncResult } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: portfolios } = useQuery({
     queryKey: ['portfolios'],
@@ -37,6 +38,15 @@ export default function WalletsPage() {
     },
     onError: () => {
       setSyncingId(null);
+    },
+  });
+
+  const deleteWallet = useMutation({
+    mutationFn: ({ portfolioId, walletId }: { portfolioId: string; walletId: string }) =>
+      walletApi.delete(portfolioId, walletId),
+    onSuccess: () => {
+      setConfirmDeleteId(null);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
   });
 
@@ -123,21 +133,44 @@ export default function WalletsPage() {
                       ? new Date(wallet.last_synced_at).toLocaleString()
                       : 'Never'}
                   </TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {wallet.last_sync_height ?? '-'}
-                  </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSync(wallet)}
-                      disabled={syncingId === wallet.id}
-                    >
-                      <RefreshCw
-                        className={`mr-1 h-4 w-4 ${syncingId === wallet.id ? 'animate-spin' : ''}`}
-                      />
-                      {syncingId === wallet.id ? 'Syncing...' : 'Sync'}
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSync(wallet)}
+                        disabled={syncingId === wallet.id}
+                      >
+                        <RefreshCw
+                          className={`mr-1 h-4 w-4 ${syncingId === wallet.id ? 'animate-spin' : ''}`}
+                        />
+                        {syncingId === wallet.id ? 'Syncing...' : 'Sync'}
+                      </Button>
+                      {confirmDeleteId === wallet.id ? (
+                        <>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteWallet.mutate({ portfolioId: wallet.portfolio_id, walletId: wallet.id })}
+                            disabled={deleteWallet.isPending}
+                          >
+                            {deleteWallet.isPending ? 'Deleting...' : 'Confirm'}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => setConfirmDeleteId(wallet.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
