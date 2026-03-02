@@ -24,6 +24,8 @@ const liveTools = [
   { icon: HardDrive, name: 'Wallets' },
   { icon: ArrowLeftRight, name: 'Transactions' },
   { icon: CreditCard, name: 'Payments' },
+  { icon: Gauge, name: 'Fee Estimator' },
+  { icon: Repeat, name: 'DCA Tracker' },
 ];
 
 const comingSoon = [
@@ -37,8 +39,6 @@ const comingSoon = [
   { icon: Bot, name: 'Opacore Agent' },
   { icon: KeyRound, name: 'Multisig' },
   { icon: ScrollText, name: 'Inheritance' },
-  { icon: Repeat, name: 'DCA Tracker' },
-  { icon: Gauge, name: 'Fee Estimator' },
 ];
 
 export default function HomePage() {
@@ -94,7 +94,7 @@ export default function HomePage() {
           <p className="mb-8 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#F7931A]">
             Live now
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {liveTools.map((tool) => (
               <div
                 key={tool.name}
