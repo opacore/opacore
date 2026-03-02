@@ -226,7 +226,7 @@ pub async fn change_password(
 
     let valid = password::verify_password(&body.current_password, &user.password_hash)?;
     if !valid {
-        return Err(AppError::Unauthorized("Current password is incorrect".to_string()));
+        return Err(AppError::Unauthorized);
     }
 
     let new_hash = password::hash_password(&body.new_password)?;
@@ -287,6 +287,77 @@ pub async fn resend_verification(
     });
 
     Ok(Json(success_msg))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ForgotPasswordRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResetPasswordRequest {
+    pub token: String,
+    pub new_password: String,
+}
+
+pub async fn forgot_password(
+    State(state): State<AppState>,
+    Json(body): Json<ForgotPasswordRequest>,
+) -> AppResult<impl IntoResponse> {
+    // Always return the same response to prevent email enumeration
+    let success = Json(serde_json::json!({
+        "message": "If an account exists with that email, a password reset link has been sent."
+    }));
+
+    let user_info = {
+        let conn = state.db.get()?;
+        conn.query_row(
+            "SELECT id FROM users WHERE email = ?1 AND email_verified = 1",
+            rusqlite::params![body.email],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+    };
+
+    let Some(user_id) = user_info else {
+        return Ok(success);
+    };
+
+    let token = verification::create_reset_token(&state.db, &user_id)?;
+
+    let config = state.config.clone();
+    let email = body.email.clone();
+    tokio::spawn(async move {
+        if let Err(e) = services::email::send_password_reset_email(&config, &email, &token).await {
+            tracing::error!("Failed to send password reset email: {e}");
+        }
+    });
+
+    Ok(success)
+}
+
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(body): Json<ResetPasswordRequest>,
+) -> AppResult<impl IntoResponse> {
+    if body.new_password.len() < 8 {
+        return Err(AppError::BadRequest(
+            "Password must be at least 8 characters".to_string(),
+        ));
+    }
+
+    let user_id = verification::validate_and_consume_reset_token(&state.db, &body.token)?;
+
+    let new_hash = password::hash_password(&body.new_password)?;
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+
+    let conn = state.db.get()?;
+    conn.execute(
+        "UPDATE users SET password_hash = ?1, updated_at = ?2 WHERE id = ?3",
+        rusqlite::params![new_hash, now, user_id],
+    )?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn logout(

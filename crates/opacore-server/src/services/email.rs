@@ -72,6 +72,32 @@ pub async fn send_verification_email(
     send_email(config, to, subject, &html).await
 }
 
+pub async fn send_password_reset_email(
+    config: &Config,
+    to: &str,
+    token: &str,
+) -> AppResult<()> {
+    let reset_url = format!("{}/reset-password?token={}", config.app_url, token);
+    let subject = "Reset your Opacore password";
+    let html = format!(
+        r#"<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+  <h2 style="color: #1a1a1a;">Reset your password</h2>
+  <p>We received a request to reset the password for your Opacore account. Click the button below to set a new password:</p>
+  <p style="text-align: center; margin: 30px 0;">
+    <a href="{reset_url}" style="display: inline-block; padding: 14px 28px; background: #f7931a; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Reset Password</a>
+  </p>
+  <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+  <p style="font-size: 14px; word-break: break-all; color: #666;">{reset_url}</p>
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+  <p style="font-size: 12px; color: #999;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+</body>
+</html>"#
+    );
+    send_email(config, to, subject, &html).await
+}
+
 pub async fn send_admin_notification(
     config: &Config,
     user_name: &str,

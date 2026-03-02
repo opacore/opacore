@@ -67,6 +67,12 @@ export const auth = {
 
   changePassword: (data: { current_password: string; new_password: string }) =>
     request<void>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
+
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (token: string, new_password: string) =>
+    request<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, new_password }) }),
 };
 
 // ── Portfolios ──
@@ -447,6 +453,20 @@ export const labels = {
     request<Label>('/labels', { method: 'POST', body: JSON.stringify(data) }),
 
   delete: (id: string) => request<void>(`/labels/${id}`, { method: 'DELETE' }),
+};
+
+// ── Fees ──
+
+export interface FeeRates {
+  fastestFee: number;
+  halfHourFee: number;
+  hourFee: number;
+  economyFee: number;
+  minimumFee: number;
+}
+
+export const fees = {
+  recommended: () => request<FeeRates>('/fees/recommended'),
 };
 
 export { ApiError };

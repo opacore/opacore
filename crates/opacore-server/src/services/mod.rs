@@ -1,5 +1,6 @@
 pub mod costbasis;
 pub mod email;
+pub mod fees;
 pub mod invoice_checker;
 pub mod prices;
 pub mod sync;

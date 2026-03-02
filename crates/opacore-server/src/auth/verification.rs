@@ -70,6 +70,55 @@ pub fn validate_and_consume_token(pool: &DbPool, token: &str) -> AppResult<Strin
     Ok(user_id)
 }
 
+/// Create a password reset token for a user. Replaces any existing reset tokens.
+pub fn create_reset_token(pool: &DbPool, user_id: &str) -> AppResult<String> {
+    let conn = pool.get()?;
+
+    conn.execute(
+        "DELETE FROM password_reset_tokens WHERE user_id = ?1",
+        rusqlite::params![user_id],
+    )?;
+
+    let id = Uuid::new_v4().to_string();
+    let token = generate_token();
+    let expires_at = (Utc::now() + Duration::hours(1))
+        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        .to_string();
+
+    conn.execute(
+        "INSERT INTO password_reset_tokens (id, user_id, token, expires_at) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![id, user_id, token, expires_at],
+    )?;
+
+    Ok(token)
+}
+
+/// Validate a reset token. Returns the user_id if valid, then deletes the token.
+pub fn validate_and_consume_reset_token(pool: &DbPool, token: &str) -> AppResult<String> {
+    let conn = pool.get()?;
+    let now = Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+
+    let user_id: String = conn
+        .query_row(
+            "SELECT user_id FROM password_reset_tokens WHERE token = ?1 AND expires_at > ?2",
+            rusqlite::params![token, now],
+            |row| row.get(0),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::BadRequest("Invalid or expired reset token".to_string())
+            }
+            _ => AppError::Database(e),
+        })?;
+
+    conn.execute(
+        "DELETE FROM password_reset_tokens WHERE user_id = ?1",
+        rusqlite::params![user_id],
+    )?;
+
+    Ok(user_id)
+}
+
 fn generate_token() -> String {
     use base64::Engine;
     let mut bytes = [0u8; 32];

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{AppError, AppResult};
 use crate::models::User;
 use crate::routes::AppState;
-use crate::services::{sync, wallet as wallet_svc};
+use crate::services::{prices, sync, wallet as wallet_svc};
 
 #[derive(Debug, Deserialize)]
 pub struct SyncRequest {
@@ -112,6 +112,16 @@ pub async fn sync_wallet(
         )
         .await?
     };
+
+    // Kick off price backfill in the background so sync response returns immediately
+    if result.new_transactions > 0 {
+        let pool = state.db.clone();
+        let api_url = state.config.coingecko_api_url.clone();
+        let wid = wallet_id.clone();
+        tokio::spawn(async move {
+            prices::backfill_wallet_prices(pool, api_url, wid).await;
+        });
+    }
 
     Ok(Json(SyncResponse {
         transactions_found: result.transactions_found,

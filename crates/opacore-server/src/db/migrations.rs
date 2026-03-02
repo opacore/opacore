@@ -63,5 +63,26 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Migration: create password_reset_tokens table if missing
+    let has_prt: bool = conn
+        .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='password_reset_tokens'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_prt {
+        conn.execute_batch(
+            "CREATE TABLE password_reset_tokens (
+                id          TEXT PRIMARY KEY NOT NULL,
+                user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token       TEXT NOT NULL UNIQUE,
+                expires_at  TEXT NOT NULL,
+                created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+            CREATE INDEX idx_prt_token ON password_reset_tokens(token);
+            CREATE INDEX idx_prt_user_id ON password_reset_tokens(user_id);",
+        )?;
+    }
+
     Ok(())
 }

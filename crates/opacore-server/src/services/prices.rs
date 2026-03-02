@@ -214,6 +214,104 @@ pub async fn backfill_date_range(
     get_cached_prices(pool, currency, start_date, end_date)
 }
 
+/// Backfill price_usd for all transactions in a wallet that are missing it.
+/// Fetches prices from CoinGecko (with caching) and updates each transaction row.
+/// Designed to run as a background task — errors are logged, not propagated.
+pub async fn backfill_wallet_prices(
+    pool: DbPool,
+    api_url: String,
+    wallet_id: String,
+) {
+    // Collect (tx_id, date) pairs for unpriced transactions
+    let rows: Vec<(String, String)> = {
+        let conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("backfill_wallet_prices: failed to get DB connection: {e}");
+                return;
+            }
+        };
+        let mut stmt = match conn.prepare(
+            "SELECT id, substr(transacted_at, 1, 10) FROM transactions
+             WHERE wallet_id = ?1 AND price_usd IS NULL AND transacted_at IS NOT NULL",
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("backfill_wallet_prices: prepare failed: {e}");
+                return;
+            }
+        };
+        stmt.query_map(rusqlite::params![wallet_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default()
+    };
+
+    if rows.is_empty() {
+        return;
+    }
+
+    tracing::info!(
+        "backfill_wallet_prices: {} transactions to price for wallet {wallet_id}",
+        rows.len()
+    );
+
+    // Deduplicate dates so we fetch each date at most once
+    let mut date_price: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let unique_dates: Vec<String> = {
+        let mut seen = std::collections::HashSet::new();
+        rows.iter()
+            .map(|(_, d)| d.clone())
+            .filter(|d| seen.insert(d.clone()))
+            .collect()
+    };
+
+    for date in &unique_dates {
+        match get_or_fetch_price(&pool, &api_url, date, "usd").await {
+            Ok(price) => {
+                date_price.insert(date.clone(), price);
+            }
+            Err(e) => {
+                tracing::warn!("backfill_wallet_prices: no price for {date}: {e}");
+            }
+        }
+        // Respect CoinGecko free-tier rate limit
+        tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+    }
+
+    // Update transactions
+    let conn = match pool.get() {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("backfill_wallet_prices: failed to get DB connection for update: {e}");
+            return;
+        }
+    };
+    let mut updated = 0usize;
+    for (tx_id, date) in &rows {
+        if let Some(&price) = date_price.get(date) {
+            if conn
+                .execute(
+                    "UPDATE transactions SET price_usd = ?1, updated_at = ?2 WHERE id = ?3",
+                    rusqlite::params![
+                        price,
+                        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),
+                        tx_id
+                    ],
+                )
+                .is_ok()
+            {
+                updated += 1;
+            }
+        }
+    }
+    tracing::info!(
+        "backfill_wallet_prices: updated {updated}/{} transactions for wallet {wallet_id}",
+        rows.len()
+    );
+}
+
 /// Backfill prices for all transaction dates that don't have cached prices.
 pub async fn backfill_transaction_prices(
     pool: &DbPool,
