@@ -155,8 +155,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground"
             onClick={async () => {
-              await signOut();
               router.push('/');
+              await signOut();
             }}
           >
             <LogOut className="h-4 w-4" />
