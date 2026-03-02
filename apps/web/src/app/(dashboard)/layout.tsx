@@ -36,6 +36,7 @@ const activeTools = [
   { href: '/wallets', label: 'Wallets', icon: HardDrive },
   { href: '/portfolios', label: 'Portfolios', icon: Wallet },
   { href: '/payments', label: 'Payments', icon: CreditCard },
+  { href: '/fee-estimator', label: 'Fee Estimator', icon: Gauge },
 ];
 
 const plannedTools = [
@@ -50,7 +51,6 @@ const plannedTools = [
   { label: 'Multisig', icon: KeyRound },
   { label: 'Inheritance', icon: ScrollText },
   { label: 'DCA Tracker', icon: Repeat },
-  { label: 'Fee Estimator', icon: Gauge },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -155,8 +155,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground"
             onClick={async () => {
-              await signOut();
               router.push('/');
+              await signOut();
             }}
           >
             <LogOut className="h-4 w-4" />

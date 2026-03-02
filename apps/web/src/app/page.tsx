@@ -24,6 +24,7 @@ const liveTools = [
   { icon: HardDrive, name: 'Wallets' },
   { icon: ArrowLeftRight, name: 'Transactions' },
   { icon: CreditCard, name: 'Payments' },
+  { icon: Gauge, name: 'Fee Estimator' },
 ];
 
 const comingSoon = [
@@ -38,7 +39,6 @@ const comingSoon = [
   { icon: KeyRound, name: 'Multisig' },
   { icon: ScrollText, name: 'Inheritance' },
   { icon: Repeat, name: 'DCA Tracker' },
-  { icon: Gauge, name: 'Fee Estimator' },
 ];
 
 export default function HomePage() {
@@ -64,9 +64,10 @@ export default function HomePage() {
         </h1>
 
         <p className="mt-8 max-w-lg text-center text-lg leading-relaxed text-[#555]">
-          Open-source operating system for bitcoiners.
+          The open-source command and control center for bitcoiners.
           <br />
-          Track, manage, and control — no altcoins, no compromise.
+          Track portfolios, manage wallets, pay invoices, estimate fees,
+          monitor nodes, mine stats, file taxes — no altcoins, no compromise.
         </p>
 
         <div className="mt-12 flex gap-4">
@@ -94,7 +95,7 @@ export default function HomePage() {
           <p className="mb-8 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#F7931A]">
             Live now
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             {liveTools.map((tool) => (
               <div
                 key={tool.name}

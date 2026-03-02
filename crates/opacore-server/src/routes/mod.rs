@@ -1,5 +1,6 @@
 mod analysis;
 mod auth;
+mod fees;
 mod invoices;
 mod labels;
 mod portfolios;
@@ -140,6 +141,8 @@ pub fn create_router(state: AppState) -> Router {
             "/api/v1/portfolios/{portfolio_id}/invoices/{invoice_id}/check-payment",
             post(invoices::check_payment),
         )
+        // Fee estimation
+        .route("/api/v1/fees/recommended", get(fees::recommended))
         // Prices
         .route("/api/v1/prices/current", get(prices::current))
         .route("/api/v1/prices/historical", get(prices::historical))
