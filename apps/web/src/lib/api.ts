@@ -426,6 +426,20 @@ export const invoices = {
     request<PublicInvoice>(`/invoices/pay/${shareToken}`),
 };
 
+// ── Fees ──
+
+export interface FeeRates {
+  fastestFee: number;
+  halfHourFee: number;
+  hourFee: number;
+  economyFee: number;
+  minimumFee: number;
+}
+
+export const fees = {
+  recommended: () => request<FeeRates>('/fees/recommended'),
+};
+
 // ── Labels ──
 
 export interface Label {
