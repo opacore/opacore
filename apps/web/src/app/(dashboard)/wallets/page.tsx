@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portfolios as portfolioApi, wallets as walletApi } from '@/lib/api';
@@ -9,11 +9,19 @@ import { Button, Badge } from '@opacore/ui';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@opacore/ui';
 import { Plus, RefreshCw, HardDrive, Trash2 } from 'lucide-react';
 
+const STALE_THRESHOLD_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+function isStale(wallet: Wallet): boolean {
+  if (!wallet.last_synced_at) return true;
+  return Date.now() - new Date(wallet.last_synced_at).getTime() > STALE_THRESHOLD_MS;
+}
+
 export default function WalletsPage() {
   const queryClient = useQueryClient();
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<{ walletId: string; result: SyncResult } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const autoSyncedRef = useRef(false);
 
   const { data: portfolios } = useQuery({
     queryKey: ['portfolios'],
@@ -35,6 +43,8 @@ export default function WalletsPage() {
       setSyncResult({ walletId, result });
       setSyncingId(null);
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
     },
     onError: () => {
       setSyncingId(null);
@@ -49,6 +59,31 @@ export default function WalletsPage() {
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
   });
+
+  // Auto-sync stale wallets sequentially on first load
+  useEffect(() => {
+    if (!walletList || !firstPortfolioId || autoSyncedRef.current) return;
+    const stale = walletList.filter(isStale);
+    if (stale.length === 0) return;
+
+    autoSyncedRef.current = true;
+
+    (async () => {
+      for (const wallet of stale) {
+        setSyncingId(wallet.id);
+        try {
+          const result = await walletApi.sync(firstPortfolioId, wallet.id);
+          setSyncResult({ walletId: wallet.id, result });
+          queryClient.invalidateQueries({ queryKey: ['wallets'] });
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
+        } catch {
+          // swallow — don't block remaining wallets
+        }
+        setSyncingId(null);
+      }
+    })();
+  }, [walletList, firstPortfolioId, queryClient]);
 
   function handleSync(wallet: Wallet) {
     setSyncingId(wallet.id);

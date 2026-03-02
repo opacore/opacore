@@ -60,13 +60,10 @@ export default function ImportWalletPage() {
 
       const wallet = await walletApi.create(data);
 
-      // Auto-trigger sync after import
-      try {
-        await walletApi.sync(wallet.portfolio_id, wallet.id);
-      } catch {
-        // Sync failure is non-fatal — wallet is still created
-        console.warn('Initial sync failed, wallet was still created');
-      }
+      // Kick off sync in background — wallet detail page will show progress
+      walletApi.sync(wallet.portfolio_id, wallet.id).catch(() => {
+        // non-fatal
+      });
 
       return wallet;
     },
@@ -196,7 +193,7 @@ export default function ImportWalletPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={importWallet.isPending}>
-              {importWallet.isPending ? 'Importing & syncing...' : 'Import Wallet'}
+              {importWallet.isPending ? 'Importing...' : 'Import Wallet'}
             </Button>
           </form>
         </CardContent>
