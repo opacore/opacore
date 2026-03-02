@@ -73,6 +73,9 @@ export const auth = {
 
   resetPassword: (token: string, new_password: string) =>
     request<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, new_password }) }),
+
+  deleteAccount: () =>
+    request<void>('/auth/account', { method: 'DELETE' }),
 };
 
 // ── Portfolios ──

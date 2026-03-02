@@ -12,7 +12,7 @@ mod wallets;
 
 use axum::{
     middleware,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 
@@ -54,6 +54,7 @@ pub fn create_router(state: AppState) -> Router {
         // Auth
         .route("/api/v1/auth/me", get(auth::me))
         .route("/api/v1/auth/change-password", post(auth::change_password))
+        .route("/api/v1/auth/account", delete(auth::delete_account))
         // Portfolios
         .route("/api/v1/portfolios", get(portfolios::list).post(portfolios::create))
         .route(

@@ -381,6 +381,25 @@ pub async fn me(Extension(user): Extension<User>) -> Json<UserPublic> {
     Json(user.into())
 }
 
+pub async fn delete_account(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    jar: CookieJar,
+) -> AppResult<impl IntoResponse> {
+    {
+        let conn = state.db.get()?;
+        conn.execute("DELETE FROM users WHERE id = ?1", rusqlite::params![user.id])?;
+    }
+
+    let removal = Cookie::build(SESSION_COOKIE)
+        .path("/")
+        .max_age(time::Duration::ZERO)
+        .http_only(true)
+        .build();
+
+    Ok((jar.add(removal), StatusCode::NO_CONTENT))
+}
+
 fn build_session_cookie(token: String, secure: bool) -> Cookie<'static> {
     Cookie::build((SESSION_COOKIE, token))
         .path("/")
