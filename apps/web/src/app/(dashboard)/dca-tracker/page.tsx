@@ -53,11 +53,25 @@ export default function DcaTrackerPage() {
 
   const portfolioId = portfolioList?.[0]?.id;
 
-  const { data: buyTxs, isLoading: txLoading } = useQuery({
+  const { data: manualBuys, isLoading: buyLoading } = useQuery({
     queryKey: ['transactions', portfolioId, 'buy'],
     queryFn: () => txApi.list({ portfolioId: portfolioId!, txType: 'buy', limit: 1000 }),
     enabled: !!portfolioId,
   });
+
+  const { data: receives, isLoading: receiveLoading } = useQuery({
+    queryKey: ['transactions', portfolioId, 'receive'],
+    queryFn: () => txApi.list({ portfolioId: portfolioId!, txType: 'receive', limit: 1000 }),
+    enabled: !!portfolioId,
+  });
+
+  const txLoading = buyLoading || receiveLoading;
+
+  // Combine manual buys + wallet receives (synced transactions come in as 'receive')
+  const buyTxs = useMemo(() => {
+    const all = [...(manualBuys ?? []), ...(receives ?? [])];
+    return all.sort((a, b) => new Date(a.transacted_at).getTime() - new Date(b.transacted_at).getTime());
+  }, [manualBuys, receives]);
 
   const { data: currentPrice } = useQuery({
     queryKey: ['prices', 'current'],
@@ -171,7 +185,7 @@ export default function DcaTrackerPage() {
       {!isLoading && !stats && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            No buy transactions found. Add some purchases to track your DCA.
+            No transactions found. Connect a wallet and sync, or add purchases manually.
           </CardContent>
         </Card>
       )}
@@ -326,7 +340,7 @@ export default function DcaTrackerPage() {
           {sortedBuys.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Purchase History</CardTitle>
+                <CardTitle className="text-base">Accumulation History</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-hidden rounded-b-lg">
