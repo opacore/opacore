@@ -5,7 +5,8 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
 
   // Proxy /api/v1/* requests to the Rust backend
-  if (url.pathname.startsWith('/api/v1/')) {
+  // Skip sync endpoint — handled by a dedicated API route with a longer timeout
+  if (url.pathname.startsWith('/api/v1/') && !url.pathname.endsWith('/sync')) {
     const target = `${apiUrl}${url.pathname}${url.search}`;
 
     const headers = new Headers(request.headers);
