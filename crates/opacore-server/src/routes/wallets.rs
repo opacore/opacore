@@ -139,7 +139,7 @@ pub async fn create(
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
     let wallet_type = body.wallet_type.as_deref().unwrap_or("descriptor");
     let network = body.network.as_deref().unwrap_or("bitcoin");
-    let gap_limit = body.gap_limit.unwrap_or(500);
+    let gap_limit = body.gap_limit.unwrap_or(100);
 
     conn.execute(
         "INSERT INTO wallets (id, portfolio_id, label, wallet_type, descriptor, xpub, address, network, derivation_path, gap_limit, created_at, updated_at)

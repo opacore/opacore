@@ -244,7 +244,7 @@ export default function ImportWalletPage() {
 
       const wallet = await walletApi.create(data);
 
-      walletApi.sync(wallet.portfolio_id, wallet.id, 500).catch(() => {});
+      walletApi.sync(wallet.portfolio_id, wallet.id, 100).catch(() => {});
 
       return wallet;
     },

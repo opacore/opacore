@@ -60,7 +60,7 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
   });
 
   const syncWallet = useMutation({
-    mutationFn: () => walletApi.sync(firstPortfolioId!, walletId, Math.max(wallet?.gap_limit ?? 500, 500)),
+    mutationFn: () => walletApi.sync(firstPortfolioId!, walletId, Math.max(wallet?.gap_limit ?? 100, 100)),
     onSuccess: (result) => {
       setSyncMessage(
         `Sync complete: ${result.transactions_found} transactions found (${result.new_transactions} new), balance: ${(result.balance_sat / 1e8).toFixed(8)} BTC`,
