@@ -34,7 +34,7 @@ function buildMultisigDescriptor(
     if (fingerprint && normPath) return `[${fingerprint}/${normPath}]${xpub}/0/*`;
     return `${xpub}/0/*`;
   });
-  const multi = `multi(${threshold},${keyExprs.join(',')})`;
+  const multi = `sortedmulti(${threshold},${keyExprs.join(',')})`;
   if (scriptType === 'P2WSH') return `wsh(${multi})`;
   if (scriptType === 'P2SH-P2WSH' || scriptType === 'P2SH_P2WSH') return `sh(wsh(${multi}))`;
   if (scriptType === 'P2SH') return `sh(${multi})`;
