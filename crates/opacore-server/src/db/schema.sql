@@ -166,3 +166,22 @@ CREATE TABLE IF NOT EXISTS price_history (
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     PRIMARY KEY (date, currency)
 );
+
+-- ============================================================
+-- ALERTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS alerts (
+    id                  TEXT PRIMARY KEY NOT NULL,
+    user_id             TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    alert_type          TEXT NOT NULL CHECK(alert_type IN ('price_above', 'price_below', 'balance_change')),
+    threshold_usd       REAL,
+    portfolio_id        TEXT REFERENCES portfolios(id) ON DELETE CASCADE,
+    wallet_id           TEXT REFERENCES wallets(id) ON DELETE CASCADE,
+    label               TEXT,
+    is_active           INTEGER NOT NULL DEFAULT 1,
+    last_triggered_at   TEXT,
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_alerts_user_id ON alerts(user_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts(is_active, alert_type);

@@ -485,4 +485,46 @@ export const fees = {
   recommended: () => request<FeeRates>('/fees/recommended'),
 };
 
+// ── Alerts ──
+
+export type AlertType = 'price_above' | 'price_below' | 'balance_change';
+
+export interface Alert {
+  id: string;
+  user_id: string;
+  alert_type: AlertType;
+  threshold_usd: number | null;
+  portfolio_id: string | null;
+  wallet_id: string | null;
+  label: string | null;
+  is_active: boolean;
+  last_triggered_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const alerts = {
+  list: () =>
+    request<Alert[]>('/alerts'),
+
+  create: (data: {
+    alert_type: AlertType;
+    threshold_usd?: number;
+    portfolio_id?: string;
+    wallet_id?: string;
+    label?: string;
+  }) =>
+    request<Alert>('/alerts', { method: 'POST', body: JSON.stringify(data) }),
+
+  update: (id: string, data: {
+    is_active?: boolean;
+    threshold_usd?: number;
+    label?: string;
+  }) =>
+    request<Alert>(`/alerts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  delete: (id: string) =>
+    request<void>(`/alerts/${id}`, { method: 'DELETE' }),
+};
+
 export { ApiError };

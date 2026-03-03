@@ -1,3 +1,4 @@
+mod alerts;
 mod analysis;
 mod auth;
 mod fees;
@@ -144,6 +145,12 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/api/v1/portfolios/{portfolio_id}/invoices/{invoice_id}/check-payment",
             post(invoices::check_payment),
+        )
+        // Alerts
+        .route("/api/v1/alerts", get(alerts::list).post(alerts::create))
+        .route(
+            "/api/v1/alerts/{id}",
+            put(alerts::update).delete(alerts::delete),
         )
         // Fees
         .route("/api/v1/fees/recommended", get(fees::recommended))

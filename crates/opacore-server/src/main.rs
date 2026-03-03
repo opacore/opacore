@@ -46,6 +46,12 @@ async fn main() {
         state.config.esplora_url.clone(),
     ));
 
+    // Spawn background alert checker (price + balance alerts, every 5 minutes)
+    tokio::spawn(services::alerts::run_alert_checker(
+        state.db.clone(),
+        state.config.clone(),
+    ));
+
     // Backfill missing transaction prices at startup (Kraken + blockchain.info, no key required)
     tokio::spawn(services::prices::backfill_all_on_startup(
         state.db.clone(),

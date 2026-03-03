@@ -1,3 +1,4 @@
+pub mod alerts;
 pub mod costbasis;
 pub mod email;
 pub mod fees;

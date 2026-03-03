@@ -6,21 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@opacore/ui';
 import { Calculator, Download } from 'lucide-react';
 
 export function TaxSummary({ portfolioId }: { portfolioId: string | undefined }) {
-  const currentYear = new Date().getFullYear();
+  // Show the most recently completed tax year (prior year during filing season)
+  const taxYear = new Date().getFullYear() - 1;
 
   const { data: report, isLoading, isError } = useQuery({
-    queryKey: ['tax-report', portfolioId, currentYear],
-    queryFn: () => tax.report(portfolioId!, currentYear),
+    queryKey: ['tax-report', portfolioId, taxYear],
+    queryFn: () => tax.report(portfolioId!, taxYear),
     enabled: !!portfolioId,
     retry: false,
   });
 
-  const csvUrl = portfolioId ? tax.csvUrl(portfolioId, currentYear) : '#';
+  const csvUrl = portfolioId ? tax.csvUrl(portfolioId, taxYear) : '#';
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Tax Summary ({currentYear})</CardTitle>
+        <CardTitle className="text-sm font-medium">Tax Summary ({taxYear})</CardTitle>
         <Calculator className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>

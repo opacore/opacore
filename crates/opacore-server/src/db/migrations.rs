@@ -84,5 +84,32 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Migration: create alerts table if missing
+    let has_alerts: bool = conn
+        .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='alerts'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_alerts {
+        conn.execute_batch(
+            "CREATE TABLE alerts (
+                id                TEXT PRIMARY KEY NOT NULL,
+                user_id           TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                alert_type        TEXT NOT NULL CHECK(alert_type IN ('price_above', 'price_below', 'balance_change')),
+                threshold_usd     REAL,
+                portfolio_id      TEXT REFERENCES portfolios(id) ON DELETE CASCADE,
+                wallet_id         TEXT REFERENCES wallets(id) ON DELETE CASCADE,
+                label             TEXT,
+                is_active         INTEGER NOT NULL DEFAULT 1,
+                last_triggered_at TEXT,
+                created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+            CREATE INDEX idx_alerts_user_id ON alerts(user_id);
+            CREATE INDEX idx_alerts_active ON alerts(is_active, alert_type);",
+        )?;
+    }
+
     Ok(())
 }
