@@ -540,6 +540,50 @@ pub async fn backfill_portfolio_prices(pool: DbPool, api_url: String, portfolio_
     bulk_backfill_prices(&pool, &api_url, &rows).await;
 }
 
+/// Backfill prices across ALL portfolios at server startup.
+/// Runs once in the background; ensures prices are filled without needing a frontend trigger.
+pub async fn backfill_all_on_startup(pool: DbPool, api_url: String) {
+    // Small delay to let the server finish starting up
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+    let portfolio_ids: Vec<String> = {
+        let conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("startup backfill: db error: {e}");
+                return;
+            }
+        };
+        let mut stmt = match conn.prepare(
+            "SELECT DISTINCT portfolio_id FROM transactions
+             WHERE price_usd IS NULL AND transacted_at IS NOT NULL",
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("startup backfill: prepare error: {e}");
+                return;
+            }
+        };
+        stmt.query_map([], |row| row.get(0))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    };
+
+    if portfolio_ids.is_empty() {
+        tracing::info!("startup backfill: all transaction prices already filled");
+        return;
+    }
+
+    tracing::info!(
+        "startup backfill: {} portfolio(s) have unpriced transactions",
+        portfolio_ids.len()
+    );
+
+    for portfolio_id in portfolio_ids {
+        backfill_portfolio_prices(pool.clone(), api_url.clone(), portfolio_id).await;
+    }
+}
+
 /// Backfill prices for all transaction dates that don't have cached prices.
 pub async fn backfill_transaction_prices(
     pool: &DbPool,

@@ -46,6 +46,12 @@ async fn main() {
         state.config.esplora_url.clone(),
     ));
 
+    // Backfill missing transaction prices at startup (Kraken + blockchain.info, no key required)
+    tokio::spawn(services::prices::backfill_all_on_startup(
+        state.db.clone(),
+        state.config.coingecko_api_url.clone(),
+    ));
+
     // Build router with middleware
     let cors = CorsLayer::new()
         .allow_origin(config.cors_origin.parse::<HeaderValue>().unwrap())
