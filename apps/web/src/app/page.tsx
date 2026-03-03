@@ -26,13 +26,13 @@ const liveTools = [
   { icon: CreditCard, name: 'Payments' },
   { icon: Gauge, name: 'Fee Estimator' },
   { icon: Repeat, name: 'DCA Tracker' },
+  { icon: Calculator, name: 'Tax Reports' },
+  { icon: Bell, name: 'Alerts' },
 ];
 
 const comingSoon = [
   { icon: Server, name: 'Node Monitor' },
   { icon: Shield, name: 'Coin Control' },
-  { icon: Bell, name: 'Alerts' },
-  { icon: Calculator, name: 'Tax Reports' },
   { icon: Zap, name: 'Nostr' },
   { icon: Pickaxe, name: 'Mining' },
   { icon: Code, name: 'API' },
@@ -94,7 +94,7 @@ export default function HomePage() {
           <p className="mb-8 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#F7931A]">
             Live now
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {liveTools.map((tool) => (
               <div
                 key={tool.name}

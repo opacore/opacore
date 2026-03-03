@@ -160,8 +160,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           variant="ghost"
           className="w-full justify-start gap-3 text-muted-foreground"
           onClick={async () => {
-            router.push('/');
             await signOut();
+            router.push('/');
           }}
         >
           <LogOut className="h-4 w-4" />
