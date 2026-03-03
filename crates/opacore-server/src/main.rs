@@ -9,6 +9,7 @@ mod routes;
 use config::Config;
 use routes::{AppState, create_router};
 use axum::http::{header, HeaderValue, Method};
+use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
@@ -77,7 +78,7 @@ async fn main() {
         .await
         .expect("Failed to bind address");
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .expect("Server failed");
 }

@@ -185,3 +185,24 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_user_id ON alerts(user_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts(is_active, alert_type);
+
+-- ============================================================
+-- BILLING
+-- ============================================================
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id                      TEXT PRIMARY KEY NOT NULL,
+    user_id                 TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    stripe_customer_id      TEXT NOT NULL UNIQUE,
+    stripe_subscription_id  TEXT UNIQUE,
+    plan                    TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'pro')),
+    status                  TEXT NOT NULL DEFAULT 'inactive' CHECK(status IN ('active', 'inactive', 'past_due', 'canceled', 'trialing')),
+    current_period_end      TEXT,
+    created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+
+CREATE TABLE IF NOT EXISTS stripe_events (
+    event_id     TEXT PRIMARY KEY NOT NULL,
+    processed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);

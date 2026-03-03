@@ -527,4 +527,16 @@ export const alerts = {
     request<void>(`/alerts/${id}`, { method: 'DELETE' }),
 };
 
+export interface BillingStatus {
+  billing_enabled: boolean;
+  plan: 'free' | 'pro';
+  status: 'active' | 'inactive' | 'past_due' | 'canceled' | 'trialing';
+  current_period_end: string | null;
+}
+export const billing = {
+  status: () => request<BillingStatus>('/billing/status'),
+  checkout: () => request<{ url: string }>('/billing/checkout', { method: 'POST' }),
+  portal: () => request<{ url: string }>('/billing/portal', { method: 'POST' }),
+};
+
 export { ApiError };

@@ -1,6 +1,7 @@
 mod alerts;
 mod analysis;
 mod auth;
+mod billing;
 mod fees;
 mod invoices;
 mod labels;
@@ -16,6 +17,8 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use std::sync::Arc;
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
 use crate::auth::middleware::require_auth;
 use crate::config::Config;
@@ -32,24 +35,60 @@ async fn health() -> &'static str {
 }
 
 pub fn create_router(state: AppState) -> Router {
+    // Rate limiting configs
+    let login_governor = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(6)   // 1 req per 6s = 10/min
+            .burst_size(3)
+            .finish()
+            .expect("login governor config"),
+    );
+    let register_governor = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(30)  // 1 req per 30s = 2/min
+            .burst_size(2)
+            .finish()
+            .expect("register governor config"),
+    );
+    let email_governor = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(60)  // 1 req per 60s = 1/min
+            .burst_size(2)
+            .finish()
+            .expect("email governor config"),
+    );
+
     // Health checks
     let health_routes = Router::new()
         .route("/health", get(health))
         .route("/api/v1/health", get(health));
 
-    // Auth routes
+    // Auth routes — login and register are rate-limited per IP
     let auth_routes = Router::new()
-        .route("/api/v1/auth/register", post(auth::register))
-        .route("/api/v1/auth/login", post(auth::login))
+        .route(
+            "/api/v1/auth/login",
+            post(auth::login).layer(GovernorLayer::new(login_governor)),
+        )
+        .route(
+            "/api/v1/auth/register",
+            post(auth::register).layer(GovernorLayer::new(register_governor)),
+        )
         .route("/api/v1/auth/logout", post(auth::logout))
         .route("/api/v1/auth/verify-email", post(auth::verify_email))
-        .route("/api/v1/auth/resend-verification", post(auth::resend_verification))
-        .route("/api/v1/auth/forgot-password", post(auth::forgot_password))
+        .route(
+            "/api/v1/auth/resend-verification",
+            post(auth::resend_verification).layer(GovernorLayer::new(email_governor.clone())),
+        )
+        .route(
+            "/api/v1/auth/forgot-password",
+            post(auth::forgot_password).layer(GovernorLayer::new(email_governor)),
+        )
         .route("/api/v1/auth/reset-password", post(auth::reset_password));
 
-    // Public invoice page
+    // Public routes (no auth required)
     let public_invoice = Router::new()
-        .route("/api/v1/invoices/pay/{share_token}", get(invoices::public_get));
+        .route("/api/v1/invoices/pay/{share_token}", get(invoices::public_get))
+        .route("/api/v1/webhooks/stripe", post(billing::webhook));
 
     let protected = Router::new()
         // Auth
@@ -152,6 +191,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/v1/alerts/{id}",
             put(alerts::update).delete(alerts::delete),
         )
+        // Billing
+        .route("/api/v1/billing/status", get(billing::status))
+        .route("/api/v1/billing/checkout", post(billing::checkout))
+        .route("/api/v1/billing/portal", post(billing::portal))
         // Fees
         .route("/api/v1/fees/recommended", get(fees::recommended))
         // Prices

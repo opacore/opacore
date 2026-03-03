@@ -92,6 +92,23 @@ pub async fn register(
         )?;
     }
 
+    // If no email provider is configured (local dev), auto-verify the user
+    if state.config.resend_api_key.is_none() {
+        let conn = state.db.get()?;
+        conn.execute(
+            "UPDATE users SET email_verified = 1 WHERE id = ?1",
+            rusqlite::params![user_id],
+        )?;
+        tracing::warn!("RESEND_API_KEY not set — auto-verified user {user_id} for local development");
+        return Ok((
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "message": "Account created. You can now sign in.",
+                "email": body.email,
+            })),
+        ));
+    }
+
     // Create verification token
     let token = verification::create_verification_token(&state.db, &user_id)?;
 
