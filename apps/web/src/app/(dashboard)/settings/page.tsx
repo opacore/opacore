@@ -1,14 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/lib/auth';
-import { auth } from '@/lib/api';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Label } from '@opacore/ui';
+import { auth, billing } from '@/lib/api';
+import { Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Label } from '@opacore/ui';
 
 export default function SettingsPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const billingParam = searchParams.get('billing');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -19,6 +22,38 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState('');
+
+  const { data: billingStatus } = useQuery({
+    queryKey: ['billing-status'],
+    queryFn: () => billing.status(),
+  });
+
+  async function handleUpgrade() {
+    setBillingError('');
+    setBillingLoading(true);
+    try {
+      const { url } = await billing.checkout();
+      window.location.href = url;
+    } catch {
+      setBillingError('Failed to start checkout. Please try again.');
+      setBillingLoading(false);
+    }
+  }
+
+  async function handlePortal() {
+    setBillingError('');
+    setBillingLoading(true);
+    try {
+      const { url } = await billing.portal();
+      window.location.href = url;
+    } catch {
+      setBillingError('Failed to open billing portal. Please try again.');
+      setBillingLoading(false);
+    }
+  }
 
   async function handleDeleteAccount() {
     setDeleteError('');
@@ -141,6 +176,97 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Billing</CardTitle>
+          <CardDescription>Manage your subscription plan</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {billingParam === 'success' && (
+            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              Payment successful — you now have Pro access.
+            </div>
+          )}
+          {billingParam === 'canceled' && (
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              Checkout canceled — no charge was made.
+            </div>
+          )}
+          {billingError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {billingError}
+            </div>
+          )}
+
+          {billingStatus ? (
+            billingStatus.billing_enabled === false ? (
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary">Self-hosted</Badge>
+                <span className="text-sm text-muted-foreground">
+                  All Pro features enabled — no subscription required.
+                </span>
+              </div>
+            ) : billingStatus.plan === 'pro' && (billingStatus.status === 'active' || billingStatus.status === 'trialing') ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-green-600 text-white">Pro</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Active
+                    {billingStatus.current_period_end
+                      ? ` · Renews ${new Date(billingStatus.current_period_end).toLocaleDateString()}`
+                      : ''}
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={handlePortal} disabled={billingLoading}>
+                  {billingLoading ? 'Loading...' : 'Manage Billing →'}
+                </Button>
+              </div>
+            ) : billingStatus.status === 'past_due' ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-amber-500 text-white">Pro</Badge>
+                  <span className="text-sm text-amber-700">
+                    Payment failed — update your payment method to keep access.
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={handlePortal} disabled={billingLoading}>
+                  {billingLoading ? 'Loading...' : 'Manage Billing →'}
+                </Button>
+              </div>
+            ) : billingStatus.status === 'canceled' ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary">Pro</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Canceled
+                    {billingStatus.current_period_end
+                      ? ` · Access until ${new Date(billingStatus.current_period_end).toLocaleDateString()}`
+                      : ''}
+                  </span>
+                </div>
+                <Button size="sm" onClick={handleUpgrade} disabled={billingLoading}>
+                  {billingLoading ? 'Loading...' : 'Reactivate →'}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline">Free Plan</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Upgrade to Pro to unlock Opacore Agent, API access, and Inheritance.
+                  </span>
+                </div>
+                <Button size="sm" onClick={handleUpgrade} disabled={billingLoading}>
+                  {billingLoading ? 'Loading...' : 'Upgrade to Pro →'}
+                </Button>
+              </div>
+            )
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading billing status...</p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="border-red-200">
         <CardHeader>
           <CardTitle className="text-red-600">Danger Zone</CardTitle>

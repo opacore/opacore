@@ -111,5 +111,45 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Migration: create subscriptions table if missing
+    let has_subscriptions: bool = conn
+        .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='subscriptions'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_subscriptions {
+        conn.execute_batch(
+            "CREATE TABLE subscriptions (
+                id                      TEXT PRIMARY KEY NOT NULL,
+                user_id                 TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                stripe_customer_id      TEXT NOT NULL UNIQUE,
+                stripe_subscription_id  TEXT UNIQUE,
+                plan                    TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'pro')),
+                status                  TEXT NOT NULL DEFAULT 'inactive' CHECK(status IN ('active', 'inactive', 'past_due', 'canceled', 'trialing')),
+                current_period_end      TEXT,
+                created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+            CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);",
+        )?;
+    }
+
+    // Migration: create stripe_events table if missing
+    let has_stripe_events: bool = conn
+        .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='stripe_events'")?
+        .query_row([], |row| row.get::<_, i32>(0))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+
+    if !has_stripe_events {
+        conn.execute_batch(
+            "CREATE TABLE stripe_events (
+                event_id     TEXT PRIMARY KEY NOT NULL,
+                processed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );",
+        )?;
+    }
+
     Ok(())
 }
