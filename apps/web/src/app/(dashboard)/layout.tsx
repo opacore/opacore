@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from '@/lib/auth';
@@ -57,6 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { data: session, isPending } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isSigningOut = useRef(false);
 
   // Remove dark mode class if set
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!session) {
-    router.push('/login');
+    if (!isSigningOut.current) router.push('/login');
     return null;
   }
 
@@ -160,6 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           variant="ghost"
           className="w-full justify-start gap-3 text-muted-foreground"
           onClick={async () => {
+            isSigningOut.current = true;
             await signOut();
             router.push('/');
           }}
