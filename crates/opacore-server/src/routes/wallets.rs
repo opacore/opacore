@@ -219,6 +219,12 @@ pub async fn delete(
     let conn = state.db.get()?;
     verify_portfolio_ownership(&conn, &portfolio_id, &user.id)?;
 
+    // Delete chain-synced transactions belonging to this wallet before deleting the wallet
+    conn.execute(
+        "DELETE FROM transactions WHERE wallet_id = ?1 AND source = 'chain'",
+        rusqlite::params![wallet_id],
+    )?;
+
     let affected = conn.execute(
         "DELETE FROM wallets WHERE id = ?1 AND portfolio_id = ?2",
         rusqlite::params![wallet_id, portfolio_id],
