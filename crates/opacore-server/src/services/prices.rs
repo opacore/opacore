@@ -313,8 +313,9 @@ async fn fetch_kraken_ohlc_range(
     Ok(price_map)
 }
 
-/// Bulk-backfill prices for a set of (tx_id, date) pairs using Kraken OHLC.
-/// Caches all fetched prices. Falls back to per-date CoinGecko on Kraken failure.
+/// Bulk-backfill prices for a set of (tx_id, date) pairs.
+/// Uses Kraken OHLC for dates within the last 720 days (free, fast).
+/// Falls back to CoinGecko per-date for older dates not covered by Kraken.
 async fn bulk_backfill_prices(
     pool: &DbPool,
     api_url: &str,
@@ -331,35 +332,51 @@ async fn bulk_backfill_prices(
     let min_date = unique_dates.iter().min().cloned().unwrap_or_default();
     let max_date = unique_dates.iter().max().cloned().unwrap_or_default();
 
-    let date_price = match fetch_kraken_ohlc_range(&min_date, &max_date).await {
-        Ok(map) if !map.is_empty() => {
-            tracing::info!("Kraken OHLC: fetched {} daily prices ({min_date} to {max_date})", map.len());
-            // Cache all prices in price_history
-            if let Ok(conn) = pool.get() {
-                for (date, price) in &map {
-                    let _ = conn.execute(
-                        "INSERT OR REPLACE INTO price_history (date, currency, price, source) VALUES (?1, 'usd', ?2, 'kraken')",
-                        rusqlite::params![date, price],
-                    );
-                }
-            }
-            map
-        }
-        Ok(_) | Err(_) => {
-            tracing::warn!("Kraken OHLC returned no data, falling back to CoinGecko per-date");
-            let mut map = std::collections::HashMap::new();
-            for date in &unique_dates {
-                match get_or_fetch_price(pool, api_url, date, "usd").await {
-                    Ok(price) => {
-                        map.insert(date.clone(), price);
-                    }
-                    Err(e) => {
-                        tracing::warn!("CoinGecko fallback: no price for {date}: {e}");
+    // Step 1: Fetch from Kraken (covers last ~720 days, no rate limit)
+    let mut date_price: std::collections::HashMap<String, f64> =
+        match fetch_kraken_ohlc_range(&min_date, &max_date).await {
+            Ok(map) => {
+                tracing::info!(
+                    "Kraken OHLC: fetched {} daily prices ({min_date} to {max_date})",
+                    map.len()
+                );
+                if let Ok(conn) = pool.get() {
+                    for (date, price) in &map {
+                        let _ = conn.execute(
+                            "INSERT OR REPLACE INTO price_history (date, currency, price, source) VALUES (?1, 'usd', ?2, 'kraken')",
+                            rusqlite::params![date, price],
+                        );
                     }
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+                map
             }
-            map
+            Err(e) => {
+                tracing::warn!("Kraken OHLC request failed: {e}");
+                std::collections::HashMap::new()
+            }
+        };
+
+    // Step 2: For any dates not covered by Kraken (typically pre-2024), fall back to CoinGecko
+    let missing: Vec<&String> = unique_dates
+        .iter()
+        .filter(|d| !date_price.contains_key(*d))
+        .collect();
+
+    if !missing.is_empty() {
+        tracing::info!(
+            "CoinGecko fallback: fetching {} dates not covered by Kraken",
+            missing.len()
+        );
+        for date in missing {
+            match get_or_fetch_price(pool, api_url, date, "usd").await {
+                Ok(price) => {
+                    date_price.insert(date.clone(), price);
+                }
+                Err(e) => {
+                    tracing::warn!("CoinGecko: no price for {date}: {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
         }
     };
 
