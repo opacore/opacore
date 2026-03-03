@@ -67,7 +67,14 @@ export default function DcaTrackerPage() {
     refetchInterval: 15_000,
   });
 
-  const txLoading = buyLoading || receiveLoading;
+  const { data: sells, isLoading: sellLoading } = useQuery({
+    queryKey: ['transactions', portfolioId, 'sell'],
+    queryFn: () => txApi.list({ portfolioId: portfolioId!, txType: 'sell', limit: 1000 }),
+    enabled: !!portfolioId,
+    refetchInterval: 15_000,
+  });
+
+  const txLoading = buyLoading || receiveLoading || sellLoading;
 
   // Combine manual buys + wallet receives
   const buyTxs = useMemo(() => {
@@ -131,14 +138,23 @@ export default function DcaTrackerPage() {
       }
     }
 
+    // Subtract sold BTC to get actual current holdings
+    const soldSats = (sells ?? []).reduce((sum, tx) => sum + tx.amount_sat, 0);
+    const heldSats = Math.max(0, totalSats - soldSats);
+    const heldBtc = satsToBtc(heldSats);
     const totalBtc = satsToBtc(totalSats);
-    const avgBuyPrice = totalBtc > 0 && totalInvestedUsd > 0 ? totalInvestedUsd / totalBtc : 0;
-    const currentValue = currentPrice ? totalBtc * currentPrice.price : null;
-    const pnl = currentValue !== null && totalInvestedUsd > 0 ? currentValue - totalInvestedUsd : null;
-    const pnlPct = pnl !== null && totalInvestedUsd > 0 ? (pnl / totalInvestedUsd) * 100 : null;
 
-    return { totalBtc, totalInvestedUsd, avgBuyPrice, currentValue, pnl, pnlPct, count: buyTxs.length, pricedCount };
-  }, [buyTxs, currentPrice]);
+    // Scale invested cost proportionally to what's still held
+    const heldRatio = totalSats > 0 ? heldSats / totalSats : 0;
+    const heldInvestedUsd = totalInvestedUsd * heldRatio;
+
+    const avgBuyPrice = totalBtc > 0 && totalInvestedUsd > 0 ? totalInvestedUsd / totalBtc : 0;
+    const currentValue = currentPrice ? heldBtc * currentPrice.price : null;
+    const pnl = currentValue !== null && heldInvestedUsd > 0 ? currentValue - heldInvestedUsd : null;
+    const pnlPct = pnl !== null && heldInvestedUsd > 0 ? (pnl / heldInvestedUsd) * 100 : null;
+
+    return { totalBtc, heldBtc, totalInvestedUsd, heldInvestedUsd, avgBuyPrice, currentValue, pnl, pnlPct, count: buyTxs.length, pricedCount };
+  }, [buyTxs, sells, currentPrice]);
 
   // Build chart data: price history + scatter buy points
   const chartData = useMemo(() => {
@@ -232,7 +248,7 @@ export default function DcaTrackerPage() {
                   <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Invested</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatUsd(stats.totalInvestedUsd)}</div>
+                  <div className="text-2xl font-bold">{formatUsd(stats.heldInvestedUsd)}</div>
                   <div className="text-xs text-muted-foreground mt-1">{stats.count} transaction{stats.count !== 1 ? 's' : ''}</div>
                 </CardContent>
               </Card>
@@ -243,7 +259,7 @@ export default function DcaTrackerPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatUsd(stats.avgBuyPrice)}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{formatBtc(stats.totalBtc)} accumulated</div>
+                  <div className="text-xs text-muted-foreground mt-1">{formatBtc(stats.heldBtc)} held</div>
                 </CardContent>
               </Card>
 
@@ -432,9 +448,9 @@ export default function DcaTrackerPage() {
                       <tfoot className="border-t bg-muted/20">
                         <tr>
                           <td className="px-4 py-2.5 text-sm font-medium">Total</td>
-                          <td className="px-4 py-2.5 text-right font-mono font-medium">{formatBtc(stats.totalBtc)}</td>
+                          <td className="px-4 py-2.5 text-right font-mono font-medium">{formatBtc(stats.heldBtc)}</td>
                           <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">avg {formatUsd(stats.avgBuyPrice)}</td>
-                          <td className="px-4 py-2.5 text-right font-bold">{formatUsd(stats.totalInvestedUsd)}</td>
+                          <td className="px-4 py-2.5 text-right font-bold">{formatUsd(stats.heldInvestedUsd)}</td>
                         </tr>
                       </tfoot>
                     )}
