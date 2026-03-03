@@ -313,12 +313,50 @@ async fn fetch_kraken_ohlc_range(
     Ok(price_map)
 }
 
+/// Fetch daily BTC/USD prices from blockchain.info (5 years of history, no key required).
+/// Returns a date → price map. Blockchain.info timestamps may be ~1 day off UTC midnight,
+/// so the caller should try adjacent dates if an exact match is missing.
+async fn fetch_blockchain_info_prices() -> AppResult<std::collections::HashMap<String, f64>> {
+    let client = Client::new();
+
+    #[derive(Deserialize)]
+    struct Response {
+        values: Vec<Point>,
+    }
+    #[derive(Deserialize)]
+    struct Point {
+        x: i64, // unix timestamp
+        y: f64, // USD price
+    }
+
+    let resp: Response = client
+        .get("https://api.blockchain.info/charts/market-price?timespan=5years&format=json&sampled=false")
+        .header("User-Agent", "opacore/0.1")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("blockchain.info request failed: {e}")))?
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("blockchain.info parse failed: {e}")))?;
+
+    let mut map = std::collections::HashMap::new();
+    for point in &resp.values {
+        if point.y > 0.0 {
+            if let Some(dt) = chrono::DateTime::from_timestamp(point.x, 0) {
+                map.insert(dt.format("%Y-%m-%d").to_string(), point.y);
+            }
+        }
+    }
+    Ok(map)
+}
+
 /// Bulk-backfill prices for a set of (tx_id, date) pairs.
-/// Uses Kraken OHLC for dates within the last 720 days (free, fast).
-/// Falls back to CoinGecko per-date for older dates not covered by Kraken.
+/// Uses Kraken OHLC for the last ~720 days and blockchain.info for older dates.
+/// Both are free with no API key required.
 async fn bulk_backfill_prices(
     pool: &DbPool,
-    api_url: &str,
+    _api_url: &str,
     rows: &[(String, String)],
 ) -> std::collections::HashMap<String, f64> {
     let unique_dates: Vec<String> = {
@@ -332,14 +370,11 @@ async fn bulk_backfill_prices(
     let min_date = unique_dates.iter().min().cloned().unwrap_or_default();
     let max_date = unique_dates.iter().max().cloned().unwrap_or_default();
 
-    // Step 1: Fetch from Kraken (covers last ~720 days, no rate limit)
+    // Step 1: Kraken — covers the last ~720 days (fast, no rate limit)
     let mut date_price: std::collections::HashMap<String, f64> =
         match fetch_kraken_ohlc_range(&min_date, &max_date).await {
             Ok(map) => {
-                tracing::info!(
-                    "Kraken OHLC: fetched {} daily prices ({min_date} to {max_date})",
-                    map.len()
-                );
+                tracing::info!("Kraken OHLC: {} prices ({min_date} to {max_date})", map.len());
                 if let Ok(conn) = pool.get() {
                     for (date, price) in &map {
                         let _ = conn.execute(
@@ -351,32 +386,45 @@ async fn bulk_backfill_prices(
                 map
             }
             Err(e) => {
-                tracing::warn!("Kraken OHLC request failed: {e}");
+                tracing::warn!("Kraken OHLC failed: {e}");
                 std::collections::HashMap::new()
             }
         };
 
-    // Step 2: For any dates not covered by Kraken (typically pre-2024), fall back to CoinGecko
-    let missing: Vec<&String> = unique_dates
-        .iter()
-        .filter(|d| !date_price.contains_key(*d))
-        .collect();
-
-    if !missing.is_empty() {
-        tracing::info!(
-            "CoinGecko fallback: fetching {} dates not covered by Kraken",
-            missing.len()
-        );
-        for date in missing {
-            match get_or_fetch_price(pool, api_url, date, "usd").await {
-                Ok(price) => {
-                    date_price.insert(date.clone(), price);
+    // Step 2: blockchain.info — covers ~5 years (fills in dates Kraken doesn't have)
+    let missing_count = unique_dates.iter().filter(|d| !date_price.contains_key(*d)).count();
+    if missing_count > 0 {
+        tracing::info!("blockchain.info fallback: fetching for {missing_count} pre-Kraken dates");
+        match fetch_blockchain_info_prices().await {
+            Ok(bc_map) => {
+                tracing::info!("blockchain.info: {} daily prices available", bc_map.len());
+                if let Ok(conn) = pool.get() {
+                    for (date, price) in &bc_map {
+                        let _ = conn.execute(
+                            "INSERT OR REPLACE INTO price_history (date, currency, price, source) VALUES (?1, 'usd', ?2, 'blockchain.info')",
+                            rusqlite::params![date, price],
+                        );
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!("CoinGecko: no price for {date}: {e}");
+                for date in &unique_dates {
+                    if !date_price.contains_key(date) {
+                        // Exact match first; blockchain.info timestamps can be 1 day off UTC
+                        if let Some(&price) = bc_map.get(date) {
+                            date_price.insert(date.clone(), price);
+                        } else if let Ok(d) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+                            // Try previous and next day to handle timestamp alignment
+                            let prev = (d - chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+                            let next = (d + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+                            if let Some(&price) = bc_map.get(&prev).or_else(|| bc_map.get(&next)) {
+                                date_price.insert(date.clone(), price);
+                            }
+                        }
+                    }
                 }
             }
-            tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+            Err(e) => {
+                tracing::warn!("blockchain.info fallback failed: {e}");
+            }
         }
     };
 
