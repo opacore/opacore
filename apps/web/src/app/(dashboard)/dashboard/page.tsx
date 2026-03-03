@@ -10,10 +10,8 @@ import { TransactionActivity } from '@/components/dashboard/transaction-activity
 import { TaxSummary } from '@/components/dashboard/tax-summary';
 import { NetworkStatus } from '@/components/dashboard/network-status';
 import { UtxoDistribution } from '@/components/dashboard/utxo-distribution';
-import { PlaceholderCard } from '@/components/dashboard/placeholder-card';
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { wallets as walletsApi } from '@/lib/api';
-import { Bell } from 'lucide-react';
 
 export default function DashboardPage() {
   const { data: portfolioList, isLoading: portfoliosLoading } = useQuery({
@@ -47,10 +45,9 @@ export default function DashboardPage() {
   });
 
   const btcPrice = currentPrice?.price ?? 0;
-  const totalBtcSat = summary?.total_balance_sat ?? 0;
-  const totalBtc = (totalBtcSat / 1e8).toFixed(8);
-  const totalValue = summary?.current_value_usd?.toFixed(2) ?? '0.00';
-  const totalCostBasis = summary?.total_cost_basis_usd?.toFixed(2) ?? '0.00';
+  const totalBtc = summary ? (summary.total_balance_sat / 1e8).toFixed(8) : undefined;
+  const totalValue = summary ? (summary.current_value_usd?.toFixed(2) ?? '0.00') : undefined;
+  const totalCostBasis = summary ? (summary.total_cost_basis_usd?.toFixed(2) ?? '0.00') : undefined;
 
   if (portfoliosLoading) {
     return (
@@ -106,11 +103,6 @@ export default function DashboardPage() {
         <UtxoDistribution portfolioId={firstPortfolioId} />
         <div className="space-y-6">
           <NetworkStatus />
-          <PlaceholderCard
-            title="Alerts"
-            description="Coming soon"
-            icon={Bell}
-          />
         </div>
       </div>
     </div>

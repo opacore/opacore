@@ -4,16 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@opacore/ui';
 import { Bitcoin, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface StatsCardsProps {
-  totalBtc: string;
-  totalValue: string;
-  totalCostBasis: string;
+  totalBtc: string | undefined;
+  totalValue: string | undefined;
+  totalCostBasis: string | undefined;
   currentPrice: number;
 }
 
 export function StatsCards({ totalBtc, totalValue, totalCostBasis, currentPrice }: StatsCardsProps) {
-  const btcNum = parseFloat(totalBtc);
-  const valueNum = parseFloat(totalValue);
-  const costBasisNum = parseFloat(totalCostBasis);
+  const loading = totalBtc === undefined;
+  const btcNum = parseFloat(totalBtc ?? '0');
+  const valueNum = parseFloat(totalValue ?? '0');
+  const costBasisNum = parseFloat(totalCostBasis ?? '0');
   const gainLoss = valueNum - costBasisNum;
   const gainLossPercent = costBasisNum > 0 ? ((gainLoss / costBasisNum) * 100).toFixed(2) : '0.00';
   const isPositive = gainLoss >= 0;
@@ -26,9 +27,11 @@ export function StatsCards({ totalBtc, totalValue, totalCostBasis, currentPrice 
           <Bitcoin className="h-4 w-4 text-[hsl(var(--bitcoin))]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{parseFloat(totalBtc).toFixed(8)}</div>
+          <div className="text-2xl font-bold">
+            {loading ? '—' : btcNum.toFixed(8)}
+          </div>
           <p className="text-xs text-muted-foreground">
-            {(btcNum * 100_000_000).toLocaleString()} sats
+            {loading ? '' : `${(btcNum * 100_000_000).toLocaleString()} sats`}
           </p>
         </CardContent>
       </Card>
@@ -40,7 +43,7 @@ export function StatsCards({ totalBtc, totalValue, totalCostBasis, currentPrice 
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            ${valueNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {loading ? '—' : `$${valueNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           </div>
           <p className="text-xs text-muted-foreground">
             BTC @ ${currentPrice.toLocaleString()}
@@ -55,7 +58,7 @@ export function StatsCards({ totalBtc, totalValue, totalCostBasis, currentPrice 
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            ${costBasisNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {loading ? '—' : `$${costBasisNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           </div>
           <p className="text-xs text-muted-foreground">Total invested</p>
         </CardContent>
@@ -71,11 +74,11 @@ export function StatsCards({ totalBtc, totalValue, totalCostBasis, currentPrice 
           )}
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-            {isPositive ? '+' : ''}${gainLoss.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          <div className={`text-2xl font-bold ${loading ? '' : isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            {loading ? '—' : `${isPositive ? '+' : ''}$${gainLoss.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           </div>
-          <p className={`text-xs ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-            {isPositive ? '+' : ''}{gainLossPercent}%
+          <p className={`text-xs ${loading ? '' : isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            {loading ? '' : `${isPositive ? '+' : ''}${gainLossPercent}%`}
           </p>
         </CardContent>
       </Card>
