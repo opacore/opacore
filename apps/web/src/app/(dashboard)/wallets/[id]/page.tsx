@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect, useRef } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +21,6 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
   const [activeTab, setActiveTab] = useState<'addresses' | 'utxos' | 'transactions'>('addresses');
   const [syncMessage, setSyncMessage] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const autoSyncedRef = useRef(false);
 
   const { data: portfolios } = useQuery({
     queryKey: ['portfolios'],
@@ -83,13 +82,6 @@ export default function WalletDetailPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // Auto-sync on first load if this wallet has never been synced
-  useEffect(() => {
-    if (!wallet || !firstPortfolioId || autoSyncedRef.current) return;
-    if (wallet.last_synced_at) return;
-    autoSyncedRef.current = true;
-    syncWallet.mutate();
-  }, [wallet, firstPortfolioId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const btcPrice = currentPrice?.price ?? 0;
 
