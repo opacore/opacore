@@ -50,6 +50,13 @@ pub fn create_router(state: AppState) -> Router {
             .finish()
             .expect("register governor config"),
     );
+    let email_governor = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(60)  // 1 req per 60s = 1/min
+            .burst_size(2)
+            .finish()
+            .expect("email governor config"),
+    );
 
     // Health checks
     let health_routes = Router::new()
@@ -68,8 +75,14 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route("/api/v1/auth/logout", post(auth::logout))
         .route("/api/v1/auth/verify-email", post(auth::verify_email))
-        .route("/api/v1/auth/resend-verification", post(auth::resend_verification))
-        .route("/api/v1/auth/forgot-password", post(auth::forgot_password))
+        .route(
+            "/api/v1/auth/resend-verification",
+            post(auth::resend_verification).layer(GovernorLayer::new(email_governor.clone())),
+        )
+        .route(
+            "/api/v1/auth/forgot-password",
+            post(auth::forgot_password).layer(GovernorLayer::new(email_governor)),
+        )
         .route("/api/v1/auth/reset-password", post(auth::reset_password));
 
     // Public routes (no auth required)
