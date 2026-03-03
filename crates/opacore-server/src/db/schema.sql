@@ -84,7 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_wallets_portfolio_id ON wallets(portfolio_id);
 CREATE TABLE IF NOT EXISTS transactions (
     id              TEXT PRIMARY KEY NOT NULL,
     portfolio_id    TEXT NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
-    wallet_id       TEXT REFERENCES wallets(id) ON DELETE SET NULL,
+    wallet_id       TEXT REFERENCES wallets(id) ON DELETE CASCADE,
     tx_type         TEXT NOT NULL,
     amount_sat      INTEGER NOT NULL,
     fee_sat         INTEGER,

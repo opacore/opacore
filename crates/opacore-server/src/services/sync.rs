@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 
-const PARALLEL_REQUESTS: usize = 5;
+const PARALLEL_REQUESTS: usize = 1;
 
 #[derive(Debug, serde::Serialize)]
 pub struct SyncResult {

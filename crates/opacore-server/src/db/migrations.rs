@@ -135,6 +135,44 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    // Migration: change transactions.wallet_id FK from ON DELETE SET NULL to CASCADE
+    // SQLite doesn't support ALTER TABLE for FK changes; must rebuild the table.
+    let wallet_fk_action: String = conn
+        .prepare("SELECT on_delete FROM pragma_foreign_key_list('transactions') WHERE \"from\"='wallet_id'")?
+        .query_row([], |row| row.get::<_, String>(0))
+        .unwrap_or_else(|_| "CASCADE".to_string());
+
+    if wallet_fk_action != "CASCADE" {
+        conn.execute_batch(
+            "PRAGMA foreign_keys=OFF;
+            CREATE TABLE transactions_new (
+                id              TEXT PRIMARY KEY NOT NULL,
+                portfolio_id    TEXT NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+                wallet_id       TEXT REFERENCES wallets(id) ON DELETE CASCADE,
+                tx_type         TEXT NOT NULL,
+                amount_sat      INTEGER NOT NULL,
+                fee_sat         INTEGER,
+                price_usd       REAL,
+                fiat_amount     REAL,
+                fiat_currency   TEXT NOT NULL DEFAULT 'usd',
+                txid            TEXT,
+                block_height    INTEGER,
+                block_time      TEXT,
+                source          TEXT NOT NULL DEFAULT 'manual',
+                transacted_at   TEXT NOT NULL,
+                created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+            INSERT INTO transactions_new SELECT * FROM transactions;
+            DROP TABLE transactions;
+            ALTER TABLE transactions_new RENAME TO transactions;
+            CREATE INDEX idx_transactions_portfolio_date ON transactions(portfolio_id, transacted_at);
+            CREATE INDEX idx_transactions_txid ON transactions(txid);
+            CREATE INDEX idx_transactions_wallet_id ON transactions(wallet_id);
+            PRAGMA foreign_keys=ON;",
+        )?;
+    }
+
     // Migration: create stripe_events table if missing
     let has_stripe_events: bool = conn
         .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='stripe_events'")?
