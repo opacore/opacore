@@ -14,7 +14,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
     queryKey: ['portfolio', id],
     queryFn: () => portfolioApi.get(id),
   });
-  const { data: summary } = useQuery({
+  const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['portfolio-summary', id],
     queryFn: () => portfolioApi.summary(id),
   });
@@ -29,6 +29,8 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
 
   const totalBtc = (summary?.total_balance_sat ?? 0) / 1e8;
   const totalValue = summary?.current_value_usd ?? 0;
+  const hasBtc = totalBtc > 0;
+  const valueLoading = summaryLoading || (hasBtc && totalValue === 0);
 
   return (
     <div className="space-y-6">
@@ -61,7 +63,7 @@ export default function PortfolioDetailPage({ params }: { params: Promise<{ id: 
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {valueLoading ? '—' : `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
             </div>
           </CardContent>
         </Card>

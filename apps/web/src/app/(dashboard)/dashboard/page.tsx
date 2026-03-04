@@ -46,7 +46,11 @@ export default function DashboardPage() {
 
   const btcPrice = currentPrice?.price ?? 0;
   const totalBtc = summary ? (summary.total_balance_sat / 1e8).toFixed(8) : undefined;
-  const totalValue = summary ? (summary.current_value_usd?.toFixed(2) ?? '0.00') : undefined;
+  // Show '—' (undefined) when summary is loading OR when price hasn't arrived yet
+  // (balance exists but value is still 0 — avoids scary "$0.00" right after sync)
+  const hasBtc = (summary?.total_balance_sat ?? 0) > 0;
+  const priceReady = (summary?.current_value_usd ?? 0) > 0 || !hasBtc;
+  const totalValue = summary && priceReady ? (summary.current_value_usd?.toFixed(2) ?? '0.00') : undefined;
   const totalCostBasis = summary ? (summary.total_cost_basis_usd?.toFixed(2) ?? '0.00') : undefined;
 
   if (portfoliosLoading) {

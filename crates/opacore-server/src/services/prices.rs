@@ -93,6 +93,17 @@ async fn fetch_current_price_kraken() -> Option<f64> {
         .ok()
 }
 
+/// Get the most recent cached price from price_history as a fallback.
+pub fn get_latest_cached_price(pool: &DbPool, currency: &str) -> Option<f64> {
+    let conn = pool.get().ok()?;
+    conn.query_row(
+        "SELECT price FROM price_history WHERE currency = ?1 ORDER BY date DESC LIMIT 1",
+        rusqlite::params![currency],
+        |row| row.get::<_, f64>(0),
+    )
+    .ok()
+}
+
 /// Fetch historical BTC price for a specific date from CoinGecko.
 /// Date format: "dd-mm-yyyy" (CoinGecko format)
 pub async fn fetch_historical_price(

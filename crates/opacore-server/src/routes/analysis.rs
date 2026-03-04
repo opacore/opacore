@@ -65,13 +65,13 @@ pub async fn summary(
     }
     drop(conn);
 
-    // Get current BTC price
+    // Get current BTC price — fall back to most recent cached price if live fetch fails
     let current_price = prices::fetch_current_price(
         &state.config.coingecko_api_url,
         "usd",
     )
     .await
-    .unwrap_or(0.0);
+    .unwrap_or_else(|_| prices::get_latest_cached_price(&state.db, "usd").unwrap_or(0.0));
 
     let method = query.method.unwrap_or_default();
     let result = costbasis::portfolio_summary(&state.db, &portfolio_id, current_price, method)?;
