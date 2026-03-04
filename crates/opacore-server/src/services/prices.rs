@@ -34,31 +34,63 @@ struct CoinGeckoMarketData {
     current_price: std::collections::HashMap<String, f64>,
 }
 
-/// Fetch current BTC price from CoinGecko.
+/// Fetch current BTC price. Tries Kraken ticker first (no key, no rate limit),
+/// falls back to CoinGecko if Kraken fails or currency isn't USD.
 pub async fn fetch_current_price(
     api_url: &str,
     currency: &str,
 ) -> AppResult<f64> {
-    let client = Client::new();
-    let url = format!(
-        "{api_url}/simple/price?ids=bitcoin&vs_currencies={currency}"
-    );
+    // Kraken ticker — fast, free, no rate limit, USD only
+    if currency == "usd" {
+        if let Some(price) = fetch_current_price_kraken().await {
+            return Ok(price);
+        }
+        tracing::warn!("Kraken ticker failed, falling back to CoinGecko");
+    }
 
-    let resp: CoinGeckoSimplePrice = client
+    let client = Client::new();
+    let url = format!("{api_url}/simple/price?ids=bitcoin&vs_currencies={currency}");
+
+    let body = client
         .get(&url)
         .header("Accept", "application/json")
         .header("User-Agent", "opacore/0.1")
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("CoinGecko request failed: {e}")))?
-        .json()
+        .json::<serde_json::Value>()
         .await
         .map_err(|e| AppError::Internal(format!("CoinGecko parse failed: {e}")))?;
 
-    resp.bitcoin
-        .get(currency)
-        .copied()
-        .ok_or_else(|| AppError::Internal(format!("No price for currency: {currency}")))
+    body.get("bitcoin")
+        .and_then(|b| b.get(currency))
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| AppError::Internal(format!("No price for currency: {currency} (response: {body})")))
+}
+
+/// Fetch current BTC/USD price from Kraken's public ticker API.
+/// Returns None on any error so the caller can fall back gracefully.
+async fn fetch_current_price_kraken() -> Option<f64> {
+    let client = Client::new();
+    let resp: serde_json::Value = client
+        .get("https://api.kraken.com/0/public/Ticker?pair=XBTUSD")
+        .header("User-Agent", "opacore/0.1")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+
+    // Response: { "result": { "XXBTZUSD": { "c": ["price", "lot"] } } }
+    resp.get("result")?
+        .get("XXBTZUSD")?
+        .get("c")?
+        .get(0)?
+        .as_str()?
+        .parse::<f64>()
+        .ok()
 }
 
 /// Fetch historical BTC price for a specific date from CoinGecko.
