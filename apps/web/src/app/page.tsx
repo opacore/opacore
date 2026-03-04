@@ -47,9 +47,9 @@ export default function HomePage() {
       {/* Hero */}
       <section className="flex min-h-screen flex-col items-center justify-center px-4">
         <img
-          src="/logo.jpg"
+          src="/favicon.svg"
           alt="Opacore"
-          className="mb-6 h-48 w-48 object-contain mix-blend-multiply"
+          className="mb-6 h-48 w-48 object-contain"
         />
 
         <p className="mb-10 text-2xl font-bold tracking-wide text-[#1a1a1a]">opacore</p>
