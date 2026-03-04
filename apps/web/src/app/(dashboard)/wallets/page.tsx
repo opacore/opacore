@@ -16,6 +16,17 @@ function isStale(wallet: Wallet): boolean {
   return Date.now() - new Date(wallet.last_synced_at).getTime() > STALE_THRESHOLD_MS;
 }
 
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 export default function WalletsPage() {
   const queryClient = useQueryClient();
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -163,10 +174,11 @@ export default function WalletsPage() {
                       ? `${(wallet.balance_sat / 1e8).toFixed(8)} BTC`
                       : wallet.last_synced_at ? '0 BTC' : '—'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className={isStale(wallet) ? 'text-amber-500' : 'text-muted-foreground'}>
                     {wallet.last_synced_at
-                      ? new Date(wallet.last_synced_at).toLocaleString()
+                      ? relativeTime(wallet.last_synced_at)
                       : 'Never'}
+                    {isStale(wallet) && syncingId !== wallet.id && ' ·  stale'}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
